@@ -93,17 +93,17 @@ GitLab Webhook
 - Returns pattern + risk score + Dynatrace incident context to Orchestrator
 
 **Scanner**
-- Receives the natural language pattern + list of services to scan
+- Receives the natural language pattern + list of services to scan (sourced from Dynatrace service map — see D11)
 - Spawns one agent per service/module in parallel (ParallelAgent in ADK)
 - Each agent searches its assigned service for the pattern using Gemini
 - Streams `agent_started` / `hit_found` / `no_hit` events to Orchestrator as they happen
-- Sends all hits to Fix Factory as a single wrapper object
+- Sends all hits to Fix Factory as a single wrapper object once all agents complete
 
 **Fix Factory**
 - Receives hits from Scanner (incident context + file paths + matching lines)
 - For each hit, spawns a fix agent with full context: Dynatrace incident traces + GitLab fix history + MongoDB scars/wins
-- Evaluation agent checks whether the fix would have prevented the Dynatrace incident
-- If evaluation fails, fix agent iterates (self-correction loop)
+- Evaluation agent checks whether the fix would have prevented the Dynatrace incident (see D05 for pass/fail criteria)
+- If evaluation fails, fix agent iterates (self-correction loop, max 3 iterations)
 - On pass: opens fix MR via GitLab MCP with incident context in the description
 - Stores outcome metadata in MongoDB
 
@@ -111,7 +111,7 @@ GitLab Webhook
 
 ## A2A Message Contracts
 
-*Full detail in `docs/a2a-contracts.md`. Summary:*
+*Full schemas (with field definitions and annotated JSON examples) in `docs/a2a-contracts.md`. Summary:*
 
 **Orchestrator → Intelligence:** PR diff + GitLab metadata
 
@@ -170,12 +170,13 @@ Full rationale in `docs/decisions.md`. Summaries:
 - **D02** — GitLab as secondary MCP. GitLab alone risks judges thinking "GitLab Duo already ships this."
 - **D03** — MongoDB as tertiary MCP for institutional memory. Three MCPs simultaneously is unprecedented in this hackathon.
 - **D04** — Drop cross-language detection as the wow moment. Too niche (only useful during migrations).
-- **D05** — Fix Factory generates real code fixes, not just warnings. Context (Dynatrace traces + GitLab fix history) is what separates it from Copilot suggestions. Self-correction loop ensures quality.
+- **D05** — Fix Factory generates real code fixes, not just warnings. Context (Dynatrace traces + GitLab fix history) is what separates it from Copilot suggestions. Self-correction loop with explicit pass/fail criteria ensures quality.
 - **D06** — Four microservices via A2A, not a monolith. Architecturally impressive; ADK grand prize winner (SalesShortcut) used 5 microservices + A2A + 34 agents.
 - **D07** — Autonomous action (real fix MRs), not just analysis. Agents DO something Claude can't — open MRs across 20 services simultaneously.
 - **D08** — Pre-merge prevention, not incident response. Dynatrace Davis AI already does incident response. Pre-merge uses Dynatrace in a way Dynatrace itself doesn't.
 - **D09** — Next.js dashboard as the hosted URL. Real-time WebSocket updates from each agent make the architecture tangible.
 - **D10** — Semantic pattern detection, not syntactic. Gemini + Dynatrace trace context enables understanding of what actually broke, not just what the code looks like.
+- **D11** — Service list sourced from Dynatrace service topology, with GitLab MCP fallback. Scans every deployed service, not just known-affected ones.
 
 ---
 
@@ -203,6 +204,8 @@ Closest competitor is **ARGUS** (argus.reviews) — AI code review with institut
 5. **2:00–2:30** — Fix MRs appear in GitLab, each with incident context embedded in the description.
 6. **2:30–3:00** — "If Ripple had existed 3 weeks ago, the outage wouldn't have happened."
 
+Full demo environment spec (service list, MongoDB seed data, triggering PR) in `docs/demo-environment.md`.
+
 ---
 
 ## Tech Stack
@@ -218,17 +221,38 @@ Closest competitor is **ARGUS** (argus.reviews) — AI code review with institut
 
 ---
 
+## MVP Definition
+
+The minimum build that makes a compelling demo. Everything below this line is required; everything above is stretch.
+
+**Hard MVP:**
+- Orchestrator (webhook receiver + A2A coordination + WebSocket endpoint)
+- Intelligence (Dynatrace MCP pattern extraction + risk scoring)
+- Scanner (parallel fan-out across ≥ 10 demo services, streaming events to dashboard)
+- Fix Factory (fix generation + MR creation via GitLab MCP)
+- Next.js dashboard (real-time WebSocket updates from Scanner fan-out)
+
+**MongoDB for MVP:** Read-only, pre-seeded with realistic scars/wins. Live read/write is stretch.
+
+**Self-correction loop for MVP:** Stretch. If time runs short, ship one fix attempt per hit with the eval agent's pass/fail verdict included in the MR description — without iterating. Still architecturally impressive.
+
+**Cut signal:** If by June 4 (one week before deadline) Fix Factory is not working end-to-end, drop live MongoDB read/write and use static seed data. The three-MCP story weakens slightly but the demo holds.
+
+---
+
 ## Current State
 
 Planning complete. No code written yet. Build order:
 
-1. Orchestrator service scaffold (ADK + Cloud Run)
-2. Dynatrace MCP integration test
-3. GitLab MCP integration test
+1. **Dynatrace MCP integration test** ← validate this before writing any service code; the entire value prop depends on it
+2. GitLab MCP integration test
+3. Orchestrator service scaffold (ADK + Cloud Run)
 4. Intelligence service (pattern extraction from Dynatrace)
 5. Scanner service (parallel fan-out)
 6. Fix Factory (fix gen + self-correction loop)
 7. MongoDB memory store
 8. Next.js dashboard
 9. A2A wiring between services
-10. Demo environment setup
+10. Demo environment setup (see `docs/demo-environment.md`)
+
+**GCP credits note:** Credits applied May 15 (1–5 business day approval, expected by ~May 22). Steps 1–2 (MCP integration tests) can run locally and do not require Cloud Run. Cloud Run deployment is not needed until step 3.
