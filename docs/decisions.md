@@ -58,6 +58,15 @@ User explicitly wanted the system to write an implementation fix, not just warn.
 
 **Self-correction loop added:** A separate evaluation agent checks whether the generated fix would have prevented the specific Dynatrace incident. If not, the fix agent iterates. This makes fix quality reliable and is architecturally impressive.
 
+**Evaluation agent criteria:**
+The eval agent receives: the original code, the proposed fix diff, the Dynatrace incident root cause summary, and the specific trace (which code path ran, where it failed). It checks three things in order:
+
+1. **Root cause addressed** — Does the fix directly modify the code identified in the trace as the failure point? (e.g. if the trace shows `requests.get()` on line 42 hung indefinitely, does the fix add a timeout to that exact call?)
+2. **Mechanism matches** — Does the fix prevent the failure *mechanism* described in the root cause, not just the symptom? (e.g. adding `timeout=5` prevents thread pool exhaustion; commenting out the call would also "prevent" it but fails this check because it removes functionality rather than hardening it)
+3. **No new risk introduced** — Does the fix itself introduce a pattern matching any known incident signature in MongoDB?
+
+All three must pass. If any fail, the eval agent returns a specific failure reason and the fix agent iterates with that feedback. Maximum 3 iterations; after that the hit is marked `self_correction_passed: false` and no MR is opened.
+
 ---
 
 ## D06 — Four microservices via A2A, not a monolithic ADK agent
@@ -106,3 +115,18 @@ Hackathon requires a URL to a hosted project. A pure webhook service with no UI 
 
 **Why:**
 Syntactic matching is what Semgrep does. Any team can write a Semgrep rule. The value is detecting the same behavioural antipattern even when the implementation looks different — a 5-second hardcoded timeout in Python and a `config.get("timeout", 5000)` in TypeScript are the same risk. Gemini + Dynatrace trace context enables semantic understanding of what actually broke.
+
+---
+
+## D11 — Service list sourced from Dynatrace service map, with GitLab MCP fallback
+
+**Decision:** The Orchestrator builds the service list for Scanner from Dynatrace's service topology/dependency graph, not from a hardcoded config or GitLab namespace listing alone.
+
+**Why Dynatrace service map:**
+Dynatrace knows which services are live in the production environment and how they are connected. Sourcing the list from Dynatrace means the scan covers every deployed service — not just repos that happen to exist in a GitLab namespace, which may include archived, deprecated, or non-deployed code. It also deepens the Dynatrace MCP usage in a non-trivial way (service topology, not just incident history).
+
+**Fallback:**
+If the Dynatrace service map returns an empty result or the MCP call fails, the Orchestrator falls back to listing repos in the configured GitLab group namespace via GitLab MCP.
+
+**Data flow:**
+Intelligence returns `affected_services` in its incident context (the services directly involved in the specific Dynatrace incident). The Orchestrator queries Dynatrace for the *full* service map and passes all services to Scanner — not just the ones already known to be affected by the incident. The scan must cover the whole environment to find the pattern everywhere it exists.
