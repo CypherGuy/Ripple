@@ -1,4 +1,5 @@
 import os
+import re
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
@@ -16,9 +17,11 @@ def _get_db():
 
 def find_similar_wins(pattern: str, _col=None) -> list[dict]:
     col = _col if _col is not None else _get_db()["wins"]
-    return list(col.find({"pattern": {"$regex": pattern[:40], "$options": "i"}}, {"_id": 0}))
+    safe = re.escape(pattern[:40])
+    return list(col.find({"pattern": {"$regex": safe, "$options": "i"}}, {"_id": 0}))
 
 
 def find_similar_scars(pattern: str, _col=None) -> list[dict]:
     col = _col if _col is not None else _get_db()["scars"]
-    return list(col.find({"pattern": {"$regex": pattern[:40], "$options": "i"}}, {"_id": 0}))
+    safe = re.escape(pattern[:40])
+    return list(col.find({"pattern": {"$regex": safe, "$options": "i"}}, {"_id": 0}))
