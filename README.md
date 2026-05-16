@@ -82,6 +82,12 @@ Phase 5's scanner was silent — it scanned everything then returned one big res
 
 The Orchestrator receives these at `POST /internal/broadcast` and immediately fans them out to all connected WebSocket clients via `broadcast_event()`. This is what will drive the real-time dashboard in Phase 9.
 
+### Phase 7 — Fix Factory: Fix Generation
+
+FastAPI service on port 8003. `POST /fix` accepts a single hit from the Scanner and returns a unified diff patch plus a one-sentence explanation.
+
+Three sources of context are gathered before Gemini writes the fix: Dynatrace span traces for the incident (via `execute-dql`), closed GitLab MRs in the target repo that mention "timeout" (prior fix precedents), and per-service history from MongoDB. All three are passed to Gemini in a single prompt, which is what separates this from a generic Copilot suggestion — the fix is grounded in what specifically broke and how the team has fixed it before.
+
 ---
 
 ## Setup
