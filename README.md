@@ -88,6 +88,12 @@ FastAPI service on port 8003. `POST /fix` accepts a single hit from the Scanner 
 
 Three sources of context are gathered before Gemini writes the fix: Dynatrace span traces for the incident (via `execute-dql`), closed GitLab MRs in the target repo that mention "timeout" (prior fix precedents), and per-service history from MongoDB. All three are passed to Gemini in a single prompt, which is what separates this from a generic Copilot suggestion — the fix is grounded in what specifically broke and how the team has fixed it before.
 
+### Phase 8 — Fix Factory: Self-correction Loop and MR Creation
+
+Phase 7 generated a fix. Phase 8 checks whether it's actually good enough before opening an MR.
+
+`run_with_correction()` wraps `generate_fix()` with an evaluation loop. After each fix attempt, `evaluate_fix()` asks Gemini whether the patch addresses the root cause. On failure the rationale is fed back into the next prompt as additional context, giving the fix agent a second chance. This repeats up to 3 times. On pass, `create_mr()` opens a real GitLab MR with the incident ID, duration, and cost in the description. The outcome is stored in MongoDB `ripple.outcomes` regardless of pass or fail.
+
 ---
 
 ## Setup

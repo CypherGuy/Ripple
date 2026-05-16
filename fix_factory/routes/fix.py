@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from fix_factory.tools.dynatrace_traces import get_incident_traces
 from fix_factory.tools.gitlab_history import get_fix_precedents
-from fix_factory.agent import generate_fix
+from fix_factory.agent import run_with_correction
 
 load_dotenv()
 router = APIRouter()
@@ -33,4 +33,4 @@ async def fix(payload: FixPayload):
     traces = get_incident_traces(env, dt_token, incident_id)
     precedents = get_fix_precedents(payload.service, gl_token)
 
-    return generate_fix(payload.model_dump(), traces, precedents)
+    return run_with_correction(payload.model_dump(), traces, precedents)

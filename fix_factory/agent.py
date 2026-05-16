@@ -62,3 +62,66 @@ Respond with only the JSON object, no markdown."""
     patch, explanation = _gemini_fn(prompt)
 
     return {"patch": patch, "fix_explanation": explanation}
+
+
+def run_with_correction(
+    hit: dict,
+    traces: list,
+    precedents: list,
+    max_iterations: int = 3,
+    _fix_fn=None,
+    _eval_fn=None,
+    _mr_fn=None,
+    _store_fn=None,
+) -> dict:
+    from fix_factory.evaluator import evaluate_fix
+    from fix_factory.tools.gitlab_mr import create_mr
+    from fix_factory.tools.mongodb_outcomes import store_outcome
+
+    if _fix_fn is None:
+        _fix_fn = generate_fix
+    if _eval_fn is None:
+        _eval_fn = evaluate_fix
+    if _mr_fn is None:
+        _mr_fn = create_mr
+    if _store_fn is None:
+        _store_fn = store_outcome
+
+    last_rationale = ""
+    extra_context = ""
+
+    for i in range(max_iterations):
+        fix = _fix_fn(hit, traces, precedents)
+        if extra_context:
+            fix["fix_explanation"] += f" (retry {i+1}: {extra_context})"
+
+        evaluation = _eval_fn(hit, fix["patch"])
+
+        if evaluation["passed"]:
+            import os
+            gl_token = os.environ.get("GITLAB_TOKEN", "")
+            mr_url = _mr_fn(hit["service"], gl_token, hit["file_path"], fix["patch"], hit["incident_context"])
+            outcome = {
+                "service": hit["service"],
+                "file_path": hit["file_path"],
+                "mr_url": mr_url,
+                "self_correction_passed": True,
+                "correction_iterations": i + 1,
+                "failure_reason": None,
+            }
+            _store_fn(outcome)
+            return {**fix, **outcome}
+
+        last_rationale = evaluation["rationale"]
+        extra_context = last_rationale
+
+    outcome = {
+        "service": hit["service"],
+        "file_path": hit["file_path"],
+        "mr_url": None,
+        "self_correction_passed": False,
+        "correction_iterations": max_iterations,
+        "failure_reason": last_rationale,
+    }
+    _store_fn(outcome)
+    return {**fix, **outcome}

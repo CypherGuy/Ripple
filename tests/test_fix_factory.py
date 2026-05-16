@@ -76,9 +76,13 @@ def test_generate_fix_works_with_empty_context():
 def test_post_fix_returns_patch_and_explanation(client):
     with patch("fix_factory.routes.fix.get_incident_traces", return_value=[]), \
          patch("fix_factory.routes.fix.get_fix_precedents", return_value=[]), \
-         patch("fix_factory.routes.fix.generate_fix", return_value={
+         patch("fix_factory.routes.fix.run_with_correction", return_value={
              "patch": MOCK_PATCH,
              "fix_explanation": MOCK_EXPLANATION,
+             "mr_url": None,
+             "self_correction_passed": True,
+             "correction_iterations": 1,
+             "failure_reason": None,
          }):
         r = client.post("/fix", json=AUTH_HIT)
 
