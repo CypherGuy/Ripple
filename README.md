@@ -39,15 +39,32 @@ FastAPI service on port 8001. `POST /analyze` accepts a PR diff and returns a se
 
 The two Dynatrace MCP tools used (actual tool names discovered by querying `tools/list` against the live gateway):
 
-| What we call | Dynatrace MCP tool |
-|---|---|
-| Fetch incident history | `query-problems` |
-| Fetch span traces | `execute-dql` |
-| Look up services | `get-entity-id` |
+| What we call           | Dynatrace MCP tool |
+| ---------------------- | ------------------ |
+| Fetch incident history | `query-problems`   |
+| Fetch span traces      | `execute-dql`      |
+| Look up services       | `get-entity-id`    |
 
 `fetch_incident_history()` calls `query-problems` with a 60-day lookback. `extract_pattern()` passes the incidents and PR diff to Gemini, which returns a natural-language description of the behavioural risk and a score. If the matched incident had a duration ≥ 47 minutes, the score is floored at 9.
 
 All tests mock the Dynatrace MCP — no live calls in the test suite.
+
+### Phase 4 — MongoDB Institutional Memory
+
+Ripple learns from past scans. Two MongoDB collections in the `ripple` database store the outcomes of previous fix MR decisions, with the aim of modifying the risk score based on previous experiences:
+
+- **`scars`** — patterns that were flagged but the fix MR was rejected (e.g. timeout intentionally absent). Each scar carries a `risk_adjustment` that lowers the score for that service.
+- **`wins`** — patterns where the fix MR was accepted and no incidents followed. Each win carries a `confidence_boost` that raises the score.
+
+`find_similar_wins()` and `find_similar_scars()` in `intelligence/tools/mongodb.py` query these collections by pattern string. The results are applied to the risk score from Phase 3 before returning from `/analyze`, and appear in `previous_scans` in the response.
+
+```bash
+python scripts/seed_mongodb.py
+# Inserted scar: gateway-service
+# Inserted scar: config-service
+# Inserted win: auth-service
+# Inserted win: session-service
+```
 
 ---
 
