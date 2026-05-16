@@ -66,6 +66,14 @@ python scripts/seed_mongodb.py
 # Inserted win: session-service
 ```
 
+### Phase 5 — Scanner Service
+
+FastAPI service on port 8002. `POST /scan` receives the pattern from Intelligence and a list of services to check, then scans all of them in parallel using `asyncio.gather()` — one Gemini call per service.
+
+`read_service_files()` in `scanner/tools/gitlab.py` fetches Python source files from a GitLab repo via the REST API. `scan_service()` passes those files to Gemini with the natural-language pattern and gets back a list of hits with file path, matching lines, and a confidence score. Services with no matching files skip the Gemini call entirely.
+
+The response includes the incident context forwarded from Intelligence and a flat hits array tagged with the service name.
+
 ---
 
 ## Setup
