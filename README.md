@@ -108,6 +108,18 @@ A summary bar tracks scanned / hits / clean / MRs opened with a live progress ba
 python tests/ws_emitter.py
 ```
 
+### Phase 10 — End-to-End A2A Wiring
+
+The four services are now connected. A GitLab webhook event triggers the full pipeline automatically:
+
+1. Orchestrator receives `POST /webhook`
+2. Calls Intelligence `/analyze` — gets semantic risk pattern + score
+3. Calls Scanner `/scan` with the pattern and all 20 demo services, passing `/internal/broadcast` as the callback so streaming events reach the dashboard in real time
+4. Calls Fix Factory `/fix` in parallel for each hit — gets patch + MR URL
+5. Returns `{fix_results: [...]}` with all outcomes
+
+A `X-Trace-Id` header (uuid4) is propagated through every downstream call for end-to-end request tracing. The service list used by the Scanner is currently a hardcoded fallback of the 20 demo services — Phase 11 replaces this with a live Dynatrace service topology lookup.
+
 ---
 
 ## Setup

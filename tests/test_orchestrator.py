@@ -1,5 +1,6 @@
 import asyncio
 import pytest
+from unittest.mock import patch, AsyncMock
 from fastapi.testclient import TestClient
 
 
@@ -21,9 +22,13 @@ def test_webhook_accepts_valid_payload(client):
         "repo": "org/payment-service",
         "diff": "@@ -12 +12 @@ timeout=None",
     }
-    r = client.post("/webhook", json=payload)
+    with patch("orchestrator.routes.webhook.run_pipeline", new_callable=AsyncMock) as mock_pipeline:
+        mock_pipeline.return_value = []
+        r = client.post("/webhook", json=payload)
     assert r.status_code == 202
-    assert r.json() == {"status": "accepted", "pr_id": "12345"}
+    assert r.json()["status"] == "accepted"
+    assert r.json()["pr_id"] == "12345"
+    assert "fix_results" in r.json()
 
 
 def test_webhook_rejects_missing_pr_id(client):
