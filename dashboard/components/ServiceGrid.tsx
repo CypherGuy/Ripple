@@ -3,11 +3,9 @@ import type { ServiceState } from '../hooks/useRippleSocket'
 import ServiceTile from './ServiceTile'
 
 const ALL_SERVICES = [
-  'payment-service', 'auth-service', 'order-service', 'notification-service',
-  'inventory-service', 'billing-service', 'reporting-service', 'gateway-service',
-  'user-service', 'search-service', 'analytics-service', 'recommendation-service',
-  'config-service', 'audit-service', 'session-service', 'webhook-service',
-  'cache-service', 'scheduler-service', 'export-service', 'admin-service',
+  'http-monitor', 'ssl-monitor', 'api-monitor', 'github-monitor',
+  'dns-checker', 'latency-monitor', 'slack-notifier', 'email-notifier',
+  'webhook-dispatcher', 'incident-manager', 'metrics-collector', 'report-generator',
 ]
 
 interface Props {

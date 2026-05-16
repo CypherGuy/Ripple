@@ -9,7 +9,7 @@ interface Incident {
 
 const DEMO_INCIDENT: Incident = {
   id: 'DT-4821',
-  title: 'Payment service cascade failure — no timeout on HTTP client',
+  title: 'PulseCheck ssl-monitor hung on slow cert check — cascade into latency-monitor and incident-manager',
   duration: 47,
   cost: '£23,000',
 }

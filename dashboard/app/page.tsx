@@ -1,13 +1,33 @@
 'use client'
+import { useState } from 'react'
 import { useRippleSocket } from '../hooks/useRippleSocket'
 import ServiceGrid from '../components/ServiceGrid'
 import SummaryBar from '../components/SummaryBar'
 import IncidentPanel from '../components/IncidentPanel'
 
-const TOTAL_SERVICES = 20
+const TOTAL_SERVICES = 12
+const ORCHESTRATOR_URL = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? 'http://localhost:8000'
 
 export default function Dashboard() {
   const { services, summary, reset } = useRippleSocket()
+  const [closing, setClosing] = useState(false)
+  const [closeResult, setCloseResult] = useState<string | null>(null)
+
+  async function closeAllMrs() {
+    setClosing(true)
+    setCloseResult(null)
+    try {
+      const r = await fetch(`${ORCHESTRATOR_URL}/admin/close-mrs`, { method: 'POST' })
+      const data = await r.json()
+      setCloseResult(`Closed ${data.closed} MR${data.closed !== 1 ? 's' : ''}`)
+      reset()
+    } catch {
+      setCloseResult('Failed to close MRs')
+    } finally {
+      setClosing(false)
+      setTimeout(() => setCloseResult(null), 4000)
+    }
+  }
 
   return (
     <div className="min-h-dvh bg-ripple-bg text-ripple-text flex flex-col">
@@ -32,6 +52,28 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Close all MRs button */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={closeAllMrs}
+                disabled={closing}
+                className={[
+                  'font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded border transition-all duration-150 cursor-pointer',
+                  'border-ripple-hit/40 text-ripple-hit/70 hover:border-ripple-hit/70 hover:text-ripple-hit',
+                  'disabled:opacity-40 disabled:cursor-not-allowed',
+                  'focus:outline-none focus:ring-1 focus:ring-ripple-hit/30',
+                ].join(' ')}
+                aria-label="Close all open Ripple MRs in GitLab"
+              >
+                {closing ? 'Closing…' : 'Close MRs'}
+              </button>
+              {closeResult && (
+                <span className="font-mono text-[9px] text-ripple-clean animate-slide-in">
+                  {closeResult}
+                </span>
+              )}
+            </div>
+
             {/* Reset button */}
             <button
               onClick={reset}

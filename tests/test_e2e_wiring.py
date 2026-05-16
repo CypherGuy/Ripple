@@ -140,6 +140,41 @@ def test_pipeline_calls_fix_factory_once_per_hit():
     assert fix_call_count["n"] == 2
 
 
+def test_pipeline_deduplicates_hits_by_service():
+    from orchestrator.pipeline import run_pipeline
+    import asyncio
+
+    fix_call_count = {"n": 0}
+
+    async def mock_post(url, **kwargs):
+        r = MagicMock()
+        if "analyze" in url:
+            r.json.return_value = MOCK_INTEL
+        elif "scan" in url:
+            # Two hits for auth-service (different files/lines), one for order-service
+            r.json.return_value = {
+                "hits": [
+                    {**MOCK_SCAN_HITS[0], "service": "auth-service", "confidence": 0.9,
+                     "file_path": "src/clients/downstream.py"},
+                    {**MOCK_SCAN_HITS[0], "service": "auth-service", "confidence": 0.7,
+                     "file_path": "src/clients/upstream.py"},
+                    {**MOCK_SCAN_HITS[0], "service": "order-service", "confidence": 0.8},
+                ],
+                "incident_context": {},
+            }
+        elif "fix" in url:
+            fix_call_count["n"] += 1
+            r.json.return_value = MOCK_FIX
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.post = mock_post
+
+    asyncio.run(run_pipeline(WEBHOOK_PAYLOAD, "trace-123", _client=mock_client))
+    # auth-service had 2 hits but should only trigger 1 Fix Factory call (highest confidence)
+    assert fix_call_count["n"] == 2
+
+
 def test_pipeline_returns_empty_fix_results_when_no_hits():
     from orchestrator.pipeline import run_pipeline
     import asyncio
@@ -157,3 +192,33 @@ def test_pipeline_returns_empty_fix_results_when_no_hits():
 
     results = asyncio.run(run_pipeline(WEBHOOK_PAYLOAD, "trace-123", _client=mock_client))
     assert results == []
+
+
+def test_pipeline_broadcasts_mr_opened_when_fix_succeeds():
+    from orchestrator.pipeline import run_pipeline
+    import asyncio
+
+    broadcast_calls = []
+
+    async def mock_post(url, **kwargs):
+        r = MagicMock()
+        if "analyze" in url:
+            r.json.return_value = MOCK_INTEL
+        elif "scan" in url:
+            r.json.return_value = {"hits": MOCK_SCAN_HITS}
+        elif "fix" in url:
+            r.json.return_value = {**MOCK_FIX, "mr_url": "https://gitlab.com/org/auth-service/-/merge_requests/1"}
+        elif "broadcast" in url:
+            broadcast_calls.append(kwargs.get("json", {}))
+            r.json.return_value = {"ok": True}
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.post = mock_post
+
+    asyncio.run(run_pipeline(WEBHOOK_PAYLOAD, "trace-123", _client=mock_client))
+
+    mr_events = [c for c in broadcast_calls if c.get("event") == "mr_opened"]
+    assert len(mr_events) == 1
+    assert mr_events[0]["service"] == "auth-service"
+    assert "merge_requests" in mr_events[0]["mr_url"]

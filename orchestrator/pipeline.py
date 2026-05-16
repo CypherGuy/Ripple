@@ -10,13 +10,11 @@ ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://localhost:8000")
 
 
 def get_service_list() -> list[dict]:
-    namespace = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/ripple-demo")
+    namespace = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/pulsecheck")
     services = [
-        "payment-service", "auth-service", "order-service", "notification-service",
-        "inventory-service", "billing-service", "reporting-service", "gateway-service",
-        "user-service", "search-service", "analytics-service", "recommendation-service",
-        "config-service", "audit-service", "session-service", "webhook-service",
-        "cache-service", "scheduler-service", "export-service", "admin-service",
+        "http-monitor", "ssl-monitor", "api-monitor", "github-monitor",
+        "dns-checker", "latency-monitor", "slack-notifier", "email-notifier",
+        "webhook-dispatcher", "incident-manager", "metrics-collector", "report-generator",
     ]
     return [
         {"name": s, "repo": f"{namespace}/{s}", "gitlab_namespace": f"{namespace}/{s}"}
@@ -72,6 +70,13 @@ async def run_pipeline(
                 timeout=600,
             )
             hits = _safe_json(scan_r, {"hits": []}).get("hits", [])
+            # One MR per service — keep highest-confidence hit when a service has multiple
+            seen: dict[str, dict] = {}
+            for h in hits:
+                svc = h.get("service", "")
+                if svc not in seen or h.get("confidence", 0) > seen[svc].get("confidence", 0):
+                    seen[svc] = h
+            hits = list(seen.values())
         except Exception as e:
             return []
 
@@ -84,11 +89,23 @@ async def run_pipeline(
                     headers=headers,
                     timeout=360,
                 )
-                return _safe_json(r, {"service": hit.get("service"), "mr_url": None,
-                                      "failure_reason": "bad response", "self_correction_passed": False})
+                result = _safe_json(r, {"service": hit.get("service"), "mr_url": None,
+                                        "failure_reason": "bad response", "self_correction_passed": False})
             except Exception as e:
                 return {"service": hit.get("service"), "mr_url": None,
                         "failure_reason": str(e), "self_correction_passed": False}
+
+            if result.get("mr_url"):
+                try:
+                    await _client.post(
+                        f"{ORCHESTRATOR_URL}/internal/broadcast",
+                        json={"event": "mr_opened", "service": hit.get("service"), "mr_url": result["mr_url"]},
+                        timeout=5,
+                    )
+                except Exception:
+                    pass
+
+            return result
 
         results = await asyncio.gather(*[fix_one(h) for h in hits])
         return [r for r in results if r is not None]

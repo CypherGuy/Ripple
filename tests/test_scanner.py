@@ -105,3 +105,20 @@ def test_post_scan_returns_empty_hits_when_no_matches(client):
 def test_post_scan_rejects_missing_pattern(client):
     r = client.post("/scan", json={"incident_context": {}, "services": []})
     assert r.status_code == 422
+
+
+def test_scan_service_prompt_excludes_already_timed_out_calls():
+    from scanner.agent import scan_service
+    prompts_seen = []
+    def capture(prompt):
+        prompts_seen.append(prompt)
+        return []
+    scan_service(
+        {"gitlab_namespace": "org/svc"},
+        "HTTP call with no timeout",
+        {},
+        _files_override={"src/client.py": "response = requests.get(url, timeout=5)\n"},
+        _gemini_fn=capture,
+    )
+    assert len(prompts_seen) == 1
+    assert "already" in prompts_seen[0].lower() or "do not flag" in prompts_seen[0].lower()

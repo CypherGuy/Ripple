@@ -23,7 +23,7 @@ class FixPayload(BaseModel):
     per_service_history: list[dict] = []
 
 
-DEMO_NAMESPACE = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/ripple-demo")
+DEMO_NAMESPACE = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/pulsecheck")
 
 
 @router.post("/fix")

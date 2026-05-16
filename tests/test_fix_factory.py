@@ -15,14 +15,10 @@ AUTH_HIT = {
     "per_service_history": [],
 }
 
-MOCK_PATCH = (
-    "--- a/src/clients/downstream.py\n"
-    "+++ b/src/clients/downstream.py\n"
-    "@@ -42,1 +42,1 @@\n"
-    "-    response = requests.get(url)\n"
-    "+    response = requests.get(url, timeout=5)"
-)
+MOCK_OLD_LINE = "    response = requests.get(url)"
+MOCK_NEW_LINE = "    response = requests.get(url, timeout=5)"
 MOCK_EXPLANATION = "Added 5s timeout to prevent thread pool exhaustion matching DT-4821 (47-min outage, £23,000)."
+MOCK_PATCH = f"-{MOCK_OLD_LINE}\n+{MOCK_NEW_LINE}"
 
 
 @pytest.fixture
@@ -43,7 +39,7 @@ def test_generate_fix_returns_patch_with_timeout():
         AUTH_HIT,
         traces=[],
         precedents=[],
-        _gemini_fn=lambda _: (MOCK_PATCH, MOCK_EXPLANATION),
+        _gemini_fn=lambda _: (MOCK_OLD_LINE, MOCK_NEW_LINE, MOCK_EXPLANATION),
     )
     assert "timeout=" in result["patch"]
     assert "DT-4821" in result["fix_explanation"]
@@ -55,9 +51,11 @@ def test_generate_fix_returns_required_keys():
         AUTH_HIT,
         traces=[],
         precedents=[],
-        _gemini_fn=lambda _: (MOCK_PATCH, MOCK_EXPLANATION),
+        _gemini_fn=lambda _: (MOCK_OLD_LINE, MOCK_NEW_LINE, MOCK_EXPLANATION),
     )
     assert "patch" in result
+    assert "old_line" in result
+    assert "new_line" in result
     assert "fix_explanation" in result
 
 
@@ -68,9 +66,10 @@ def test_generate_fix_works_with_empty_context():
         hit,
         traces=[],
         precedents=[],
-        _gemini_fn=lambda _: (MOCK_PATCH, MOCK_EXPLANATION),
+        _gemini_fn=lambda _: (MOCK_OLD_LINE, MOCK_NEW_LINE, MOCK_EXPLANATION),
     )
-    assert result["patch"] != ""
+    assert result["old_line"] != ""
+    assert result["new_line"] != ""
 
 
 def test_post_fix_returns_patch_and_explanation(client):
@@ -78,6 +77,8 @@ def test_post_fix_returns_patch_and_explanation(client):
          patch("fix_factory.routes.fix.get_fix_precedents", return_value=[]), \
          patch("fix_factory.routes.fix.run_with_correction", return_value={
              "patch": MOCK_PATCH,
+             "old_line": MOCK_OLD_LINE,
+             "new_line": MOCK_NEW_LINE,
              "fix_explanation": MOCK_EXPLANATION,
              "mr_url": None,
              "self_correction_passed": True,
@@ -102,3 +103,28 @@ def test_get_incident_traces_raises_on_bad_credentials():
     from fix_factory.tools.dynatrace_traces import get_incident_traces
     with pytest.raises(Exception):
         get_incident_traces("bad.env.com", "bad-token", "DT-4821")
+
+
+# --- _apply_patch unit tests ---
+
+def test_apply_patch_exact_match():
+    from fix_factory.tools.gitlab_mr import _apply_patch
+    content = "import requests\n\ndef get_data(url):\n    response = requests.get(url)\n    return response\n"
+    result = _apply_patch(content, "    response = requests.get(url)", "    response = requests.get(url, timeout=5)")
+    assert "timeout=5" in result
+    assert "requests.get(url)\n" not in result
+
+
+def test_apply_patch_strip_based_fallback():
+    from fix_factory.tools.gitlab_mr import _apply_patch
+    # File uses 2-space indent, Gemini assumed 4-space
+    content = "def get(url):\n  response = requests.get(url)\n  return response\n"
+    result = _apply_patch(content, "    response = requests.get(url)", "    response = requests.get(url, timeout=5)")
+    assert "timeout=5" in result
+
+
+def test_apply_patch_returns_unchanged_when_no_match():
+    from fix_factory.tools.gitlab_mr import _apply_patch
+    content = "x = 1\ny = 2\n"
+    result = _apply_patch(content, "z = 3", "z = 4")
+    assert result == content

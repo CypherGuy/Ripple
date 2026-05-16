@@ -48,6 +48,9 @@ IMPORTANT: Match the semantic risk, not the exact wording. For example, "HTTP ca
 means any HTTP request (requests.get, httpx.get, urllib, etc.) that does not pass a timeout parameter.
 The function does not need to be async — synchronous functions are equally dangerous.
 
+Do NOT flag HTTP calls that already pass a timeout argument (e.g. timeout=5, timeout=DEFAULT_TIMEOUT,
+timeout=(connect, read)). Only flag calls where timeout is completely absent.
+
 FILES:
 {files_text[:8000]}
 

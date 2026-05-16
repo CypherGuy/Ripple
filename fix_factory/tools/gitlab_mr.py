@@ -9,8 +9,10 @@ def create_mr(
     gitlab_namespace: str,
     token: str,
     file_path: str,
-    patch: str,
+    old_line: str,
+    new_line: str,
     incident_context: dict,
+    evaluated_on: str = "incident_context",
 ) -> str | None:
     encoded = gitlab_namespace.replace("/", "%2F")
     headers = {"PRIVATE-TOKEN": token, "Content-Type": "application/json"}
@@ -35,8 +37,7 @@ def create_mr(
         file_r.raise_for_status()
         current_content = base64.b64decode(file_r.json()["content"]).decode()
 
-        # Apply patch (simple line replacement from unified diff)
-        new_content = _apply_patch(current_content, patch)
+        new_content = _apply_patch(current_content, old_line, new_line)
 
         # Commit
         httpx.put(f"{_GITLAB_BASE}/projects/{encoded}/repository/files/{path_enc}",
@@ -47,6 +48,16 @@ def create_mr(
         # Open MR
         duration = incident_context.get("duration_minutes", "?")
         cost = incident_context.get("estimated_cost", "unknown")
+        if evaluated_on == "technical_merit":
+            verification_note = (
+                "_Verified on technical merit — no incident root cause was available "
+                "from Dynatrace at evaluation time. Fix is structurally sound._"
+            )
+        else:
+            verification_note = (
+                f"_Verified against incident root cause. "
+                f"Incident: {incident_id} — {duration} min outage, {cost}._"
+            )
         mr_r = httpx.post(f"{_GITLAB_BASE}/projects/{encoded}/merge_requests",
                           json={
                               "source_branch": branch,
@@ -55,7 +66,9 @@ def create_mr(
                               "description": (
                                   f"**Automated fix by Ripple**\n\n"
                                   f"Incident: {incident_id} — {duration} min outage, {cost}\n\n"
-                                  f"This fix prevents the pattern that caused the incident above."
+                                  f"This fix prevents the timeout-less HTTP call pattern "
+                                  f"that caused the incident above.\n\n"
+                                  f"{verification_note}"
                               ),
                           },
                           headers=headers, timeout=10)
@@ -65,19 +78,21 @@ def create_mr(
         return None
 
 
-def _apply_patch(content: str, patch: str) -> str:
+def _apply_patch(content: str, old_line: str, new_line: str) -> str:
+    if not old_line:
+        return content
+
+    # Exact match first
+    if old_line in content:
+        return content.replace(old_line, new_line, 1)
+
+    # Strip-based fallback: handles indentation mismatches between Gemini's
+    # assumed context and the actual file
     lines = content.splitlines(keepends=True)
-    for line in patch.splitlines():
-        if line.startswith("-    ") or line.startswith("-  "):
-            old = line[1:].rstrip("\n")
-            for i, l in enumerate(lines):
-                if l.rstrip("\n") == old:
-                    lines[i] = ""
-                    break
-        elif line.startswith("+    ") or line.startswith("+  "):
-            new = line[1:]
-            for i, l in enumerate(lines):
-                if l == "":
-                    lines[i] = new if new.endswith("\n") else new + "\n"
-                    break
-    return "".join(l for l in lines if l != "")
+    for i, line in enumerate(lines):
+        if line.rstrip("\n").strip() == old_line.strip():
+            indent = len(line) - len(line.lstrip())
+            lines[i] = " " * indent + new_line.strip() + "\n"
+            return "".join(lines)
+
+    return content

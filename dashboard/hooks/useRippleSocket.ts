@@ -27,9 +27,9 @@ export function useRippleSocket() {
     scanned: 0, hits: 0, clean: 0, mrsOpened: 0, connected: false,
   })
   const ws = useRef<WebSocket | null>(null)
-  // Track services that have already received a terminal event (hit/no_hit)
-  // so duplicate emitter runs don't double-count
   const settled = useRef<Set<string>>(new Set())
+  // Deduplicate mr_opened by URL so double-connection or duplicate events don't inflate the counter
+  const settledMrUrls = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     let destroyed = false
@@ -86,7 +86,10 @@ export function useRippleSocket() {
               }
             } else if (event.event === 'mr_opened') {
               next.set(svc, { ...current, mrUrl: event.mr_url })
-              setSummary(s => ({ ...s, mrsOpened: s.mrsOpened + 1 }))
+              if (event.mr_url && !settledMrUrls.current.has(event.mr_url)) {
+                settledMrUrls.current.add(event.mr_url)
+                setSummary(s => ({ ...s, mrsOpened: s.mrsOpened + 1 }))
+              }
             }
 
             return next
@@ -105,6 +108,7 @@ export function useRippleSocket() {
 
   function reset() {
     settled.current.clear()
+    settledMrUrls.current.clear()
     setServices(new Map())
     setSummary(s => ({ ...s, scanned: 0, hits: 0, clean: 0, mrsOpened: 0 }))
   }
