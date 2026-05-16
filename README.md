@@ -74,6 +74,14 @@ FastAPI service on port 8002. `POST /scan` receives the pattern from Intelligenc
 
 The response includes the incident context forwarded from Intelligence and a flat hits array tagged with the service name.
 
+### Phase 6 — Scanner Streaming Events
+
+Phase 5's scanner was silent — it scanned everything then returned one big result. Phase 6 makes it talk as it goes.
+
+`scanner/streaming.py` adds `emit_event()`, which fires a POST to the Orchestrator for each service the moment it finishes — before the full fan-out is done. Three event types match the contract in `docs/a2a-contracts.md`: `agent_started` fires when a service begins, `hit_found` fires with the matched lines if a pattern is found, `no_hit` fires otherwise.
+
+The Orchestrator receives these at `POST /internal/broadcast` and immediately fans them out to all connected WebSocket clients via `broadcast_event()`. This is what will drive the real-time dashboard in Phase 9.
+
 ---
 
 ## Setup
