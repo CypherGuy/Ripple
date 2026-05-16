@@ -54,16 +54,21 @@ async def run_pipeline(
         )
         hits = scan_r.json().get("hits", [])
 
-        async def fix_one(hit: dict) -> dict:
-            r = await _client.post(
-                f"{FIX_FACTORY_URL}/fix",
-                json={**hit, "incident_context": intel.get("incident_context", {})},
-                headers=headers,
-                timeout=120,
-            )
-            return r.json()
+        async def fix_one(hit: dict) -> dict | None:
+            try:
+                r = await _client.post(
+                    f"{FIX_FACTORY_URL}/fix",
+                    json={**hit, "incident_context": intel.get("incident_context", {})},
+                    headers=headers,
+                    timeout=360,
+                )
+                return r.json()
+            except Exception as e:
+                return {"service": hit.get("service"), "mr_url": None,
+                        "failure_reason": str(e), "self_correction_passed": False}
 
-        return list(await asyncio.gather(*[fix_one(h) for h in hits]))
+        results = await asyncio.gather(*[fix_one(h) for h in hits])
+        return [r for r in results if r is not None]
 
     finally:
         if close_client:
