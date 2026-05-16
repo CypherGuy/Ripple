@@ -23,14 +23,20 @@ class FixPayload(BaseModel):
     per_service_history: list[dict] = []
 
 
+DEMO_NAMESPACE = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/ripple-demo")
+
+
 @router.post("/fix")
 async def fix(payload: FixPayload):
     env = os.environ["DT_ENVIRONMENT"]
     dt_token = os.environ["DT_PLATFORM_TOKEN"]
     gl_token = os.environ["GITLAB_TOKEN"]
+    namespace = f"{DEMO_NAMESPACE}/{payload.service}"
 
     incident_id = payload.incident_context.get("incident_id", "")
     traces = get_incident_traces(env, dt_token, incident_id)
-    precedents = get_fix_precedents(payload.service, gl_token)
+    precedents = get_fix_precedents(namespace, gl_token)
 
-    return run_with_correction(payload.model_dump(), traces, precedents)
+    hit = payload.model_dump()
+    hit["gitlab_namespace"] = namespace
+    return run_with_correction(hit, traces, precedents)

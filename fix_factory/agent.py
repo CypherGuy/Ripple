@@ -100,7 +100,8 @@ def run_with_correction(
         if evaluation["passed"]:
             import os
             gl_token = os.environ.get("GITLAB_TOKEN", "")
-            mr_url = _mr_fn(hit["service"], gl_token, hit["file_path"], fix["patch"], hit["incident_context"])
+            namespace = hit.get("gitlab_namespace", hit["service"])
+            mr_url = _mr_fn(namespace, gl_token, hit["file_path"], fix["patch"], hit["incident_context"])
             outcome = {
                 "service": hit["service"],
                 "file_path": hit["file_path"],
