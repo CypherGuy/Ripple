@@ -27,6 +27,9 @@ export function useRippleSocket() {
     scanned: 0, hits: 0, clean: 0, mrsOpened: 0, connected: false,
   })
   const ws = useRef<WebSocket | null>(null)
+  // Track services that have already received a terminal event (hit/no_hit)
+  // so duplicate emitter runs don't double-count
+  const settled = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     let destroyed = false
@@ -71,10 +74,16 @@ export function useRippleSocket() {
                 confidence: event.data?.confidence ?? null,
                 timestamp: event.timestamp,
               })
-              setSummary(s => ({ ...s, scanned: s.scanned + 1, hits: s.hits + 1 }))
+              if (!settled.current.has(svc)) {
+                settled.current.add(svc)
+                setSummary(s => ({ ...s, scanned: s.scanned + 1, hits: s.hits + 1 }))
+              }
             } else if (event.event === 'no_hit') {
               next.set(svc, { ...current, status: 'clean', timestamp: event.timestamp })
-              setSummary(s => ({ ...s, scanned: s.scanned + 1, clean: s.clean + 1 }))
+              if (!settled.current.has(svc)) {
+                settled.current.add(svc)
+                setSummary(s => ({ ...s, scanned: s.scanned + 1, clean: s.clean + 1 }))
+              }
             } else if (event.event === 'mr_opened') {
               next.set(svc, { ...current, mrUrl: event.mr_url })
               setSummary(s => ({ ...s, mrsOpened: s.mrsOpened + 1 }))
@@ -94,5 +103,11 @@ export function useRippleSocket() {
     }
   }, [])
 
-  return { services, summary }
+  function reset() {
+    settled.current.clear()
+    setServices(new Map())
+    setSummary(s => ({ ...s, scanned: 0, hits: 0, clean: 0, mrsOpened: 0 }))
+  }
+
+  return { services, summary, reset }
 }

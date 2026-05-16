@@ -7,7 +7,7 @@ import IncidentPanel from '../components/IncidentPanel'
 const TOTAL_SERVICES = 20
 
 export default function Dashboard() {
-  const { services, summary } = useRippleSocket()
+  const { services, summary, reset } = useRippleSocket()
 
   return (
     <div className="min-h-dvh bg-ripple-bg text-ripple-text flex flex-col">
@@ -31,15 +31,30 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Live badge */}
-          {summary.connected && (
-            <div className="flex items-center gap-1.5 border border-ripple-clean/30 bg-ripple-clean/5 rounded px-2 py-1 animate-slide-in">
-              <span className="w-1.5 h-1.5 rounded-full bg-ripple-clean animate-pulse" />
-              <span className="font-mono text-[9px] font-semibold text-ripple-clean uppercase tracking-widest">
-                Streaming
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {/* Reset button */}
+            <button
+              onClick={reset}
+              className={[
+                'font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded border transition-all duration-150 cursor-pointer',
+                'border-white/10 text-ripple-subtle hover:border-white/20 hover:text-ripple-text',
+                'focus:outline-none focus:ring-1 focus:ring-white/20',
+              ].join(' ')}
+              aria-label="Reset scan state"
+            >
+              Reset
+            </button>
+
+            {/* Live badge */}
+            {summary.connected && (
+              <div className="flex items-center gap-1.5 border border-ripple-clean/30 bg-ripple-clean/5 rounded px-2 py-1 animate-slide-in">
+                <span className="w-1.5 h-1.5 rounded-full bg-ripple-clean animate-pulse" />
+                <span className="font-mono text-[9px] font-semibold text-ripple-clean uppercase tracking-widest">
+                  Streaming
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
