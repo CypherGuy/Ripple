@@ -12,3 +12,4 @@ build/
 docs/
 .playwright-mcp/
 dashboard/.next/
+.vscode/

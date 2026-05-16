@@ -1,0 +1,16 @@
+{
+  "service": "auth-service",
+  "file_path": "src/clients/downstream.py",
+  "matching_lines": [
+    { "line_number": 42, "content": "response = requests.get(url)" }
+  ],
+  "incident_context": {
+    "incident_id": "DT-4821",
+    "title": "Payment service cascade failure — no timeout on HTTP client",
+    "duration_minutes": 47,
+    "estimated_cost": "£23,000",
+    "root_cause_summary": "HTTP client with no timeout caused thread pool exhaustion under load.",
+    "trace_id": "REPLACE_WITH_REAL_TRACE_ID"
+  },
+  "per_service_history": []
+}

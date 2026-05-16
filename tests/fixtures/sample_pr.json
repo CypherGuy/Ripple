@@ -1,0 +1,16 @@
+{
+  "pr_id": "12345",
+  "pr_url": "https://gitlab.com/cypherguy-group/ripple-demo/payment-service/merge_requests/12345",
+  "repo": "cypherguy-group/ripple-demo/payment-service",
+  "branch": "feature/update-timeout-config",
+  "target_branch": "main",
+  "author": "dev@example.com",
+  "commit_sha": "abc123def456",
+  "changed_files": [
+    {
+      "path": "src/http/client.py",
+      "patch": "@@ -12,6 +12,8 @@\n-  timeout=None\n+  response = requests.get(f\"{BASE_URL}/charge\", headers=auth_headers)"
+    }
+  ],
+  "diff": "--- a/src/http/client.py\n+++ b/src/http/client.py\n@@ -12 +12 @@\n-  timeout=None\n+  response = requests.get(f\"{BASE_URL}/charge\", headers=auth_headers)"
+}

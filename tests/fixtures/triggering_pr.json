@@ -1,0 +1,5 @@
+{
+  "pr_id": "demo-trigger-1",
+  "repo": "cypherguy-group/ripple-demo/payment-service",
+  "diff": "--- a/src/http/client.py\n+++ b/src/http/client.py\n@@ -12 +12 @@\n-  timeout=None\n+  response = requests.get(f\"{BASE_URL}/charge\", headers=auth_headers)"
+}

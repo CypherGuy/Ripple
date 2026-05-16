@@ -120,6 +120,21 @@ The four services are now connected. A GitLab webhook event triggers the full pi
 
 A `X-Trace-Id` header (uuid4) is propagated through every downstream call for end-to-end request tracing. The service list used by the Scanner is currently a hardcoded fallback of the 20 demo services — Phase 11 replaces this with a live Dynatrace service topology lookup.
 
+### Phase 11 — Demo Environment Setup
+
+`scripts/setup_demo.py` creates the 20 GitLab repos Ripple actually scans during the demo. Seven repos contain the timeout-less HTTP pattern (light up red), thirteen have timeout-guarded calls (light up green).
+
+```bash
+# Create all 20 repos under your configured namespace
+python scripts/setup_demo.py --create
+
+# Verify everything is in place
+python scripts/setup_demo.py --verify
+# All 20 repos verified · 7 hits confirmed · MongoDB seeded · Dynatrace: accessible
+```
+
+Add `DEMO_NAMESPACE=your-gitlab-group/ripple-demo` to `.env` to configure the target GitLab namespace. The verify flag also checks MongoDB has the 2 scars and 2 wins from `scripts/seed_mongodb.py`, and that Dynatrace is reachable via `query-problems`.
+
 ---
 
 ## Setup
