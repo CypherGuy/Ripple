@@ -1,0 +1,120 @@
+'use client'
+import type { ServiceState } from '../hooks/useRippleSocket'
+
+interface Props {
+  name: string
+  state: ServiceState
+}
+
+const STATUS_CONFIG = {
+  idle: {
+    border: 'border-white/5',
+    bg: 'bg-ripple-card',
+    dot: 'bg-ripple-subtle',
+    label: 'IDLE',
+    labelColor: 'text-ripple-subtle',
+    glow: '',
+  },
+  scanning: {
+    border: 'border-ripple-scan/40',
+    bg: 'bg-ripple-card',
+    dot: 'bg-ripple-scan',
+    label: 'SCANNING',
+    labelColor: 'text-ripple-scan',
+    glow: 'shadow-[0_0_16px_rgba(245,158,11,0.2)]',
+  },
+  hit: {
+    border: 'border-ripple-hit/60',
+    bg: 'bg-ripple-card',
+    dot: 'bg-ripple-hit',
+    label: 'HIT',
+    labelColor: 'text-ripple-hit',
+    glow: 'shadow-[0_0_20px_rgba(239,68,68,0.35)] animate-hit-pulse',
+  },
+  clean: {
+    border: 'border-ripple-clean/30',
+    bg: 'bg-ripple-card',
+    dot: 'bg-ripple-clean',
+    label: 'CLEAN',
+    labelColor: 'text-ripple-clean',
+    glow: 'shadow-[0_0_12px_rgba(34,197,94,0.2)]',
+  },
+} as const
+
+export default function ServiceTile({ name, state }: Props) {
+  const cfg = STATUS_CONFIG[state.status]
+
+  return (
+    <div
+      className={[
+        'relative flex flex-col justify-between rounded-lg border p-3 transition-all duration-300',
+        cfg.bg, cfg.border, cfg.glow,
+        'min-h-[100px]',
+      ].join(' ')}
+      aria-label={`${name}: ${state.status}`}
+    >
+      {/* Scanning ring */}
+      {state.status === 'scanning' && (
+        <span className="absolute inset-0 rounded-lg border border-ripple-scan/50 animate-scan-ring" />
+      )}
+
+      {/* Header row */}
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className={['w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-300', cfg.dot].join(' ')}
+          aria-hidden="true"
+        />
+        <span className={['font-mono text-[9px] font-semibold tracking-widest uppercase', cfg.labelColor].join(' ')}>
+          {cfg.label}
+        </span>
+      </div>
+
+      {/* Service name */}
+      <p className="font-mono text-[11px] text-ripple-text/80 mt-2 truncate leading-tight">
+        {name}
+      </p>
+
+      {/* Footer */}
+      <div className="mt-2">
+        {state.status === 'hit' && state.mrUrl && (
+          <a
+            href={state.mrUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={[
+              'inline-flex items-center gap-1 font-mono text-[9px] font-semibold tracking-wider uppercase',
+              'text-ripple-hit border border-ripple-hit/40 rounded px-2 py-0.5',
+              'hover:bg-ripple-hit/10 hover:border-ripple-hit/70 transition-all duration-150',
+              'cursor-pointer focus:outline-none focus:ring-1 focus:ring-ripple-hit/50',
+            ].join(' ')}
+          >
+            View MR
+            <svg className="w-2.5 h-2.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </a>
+        )}
+        {state.status === 'hit' && !state.mrUrl && (
+          <span className="font-mono text-[9px] text-ripple-hit/60 uppercase tracking-wider">
+            {state.fileHit ? state.fileHit.split('/').pop() : 'Pattern found'}
+          </span>
+        )}
+        {state.status === 'scanning' && (
+          <span className="font-mono text-[9px] text-ripple-scan/60 uppercase tracking-wider">
+            Searching...
+          </span>
+        )}
+        {state.status === 'clean' && (
+          <span className="font-mono text-[9px] text-ripple-clean/70 uppercase tracking-wider">
+            No match
+          </span>
+        )}
+        {state.status === 'idle' && (
+          <span className="font-mono text-[9px] text-ripple-subtle/50 uppercase tracking-wider">
+            Standby
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
