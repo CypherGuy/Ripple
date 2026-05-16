@@ -29,17 +29,22 @@ export function useRippleSocket() {
   const ws = useRef<WebSocket | null>(null)
 
   useEffect(() => {
+    let destroyed = false
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+
     function connect() {
+      if (destroyed) return
       const socket = new WebSocket(WS_URL)
       ws.current = socket
 
       socket.onopen = () => {
+        if (destroyed) { socket.close(); return }
         setSummary(s => ({ ...s, connected: true }))
       }
 
       socket.onclose = () => {
         setSummary(s => ({ ...s, connected: false }))
-        setTimeout(connect, 2000)
+        if (!destroyed) reconnectTimer = setTimeout(connect, 2000)
       }
 
       socket.onerror = () => socket.close()
@@ -82,7 +87,11 @@ export function useRippleSocket() {
     }
 
     connect()
-    return () => ws.current?.close()
+    return () => {
+      destroyed = true
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      ws.current?.close()
+    }
   }, [])
 
   return { services, summary }
