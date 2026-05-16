@@ -6,6 +6,7 @@ INTELLIGENCE_URL = os.environ.get("INTELLIGENCE_URL", "http://localhost:8001")
 SCANNER_URL = os.environ.get("SCANNER_URL", "http://localhost:8002")
 FIX_FACTORY_URL = os.environ.get("FIX_FACTORY_URL", "http://localhost:8003")
 ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://localhost:8000")
+DEMO_NAMESPACE = os.environ.get("DEMO_NAMESPACE", "ripple-demo")
 
 
 def get_service_list() -> list[dict]:
@@ -17,7 +18,7 @@ def get_service_list() -> list[dict]:
         "cache-service", "scheduler-service", "export-service", "admin-service",
     ]
     return [
-        {"name": s, "repo": f"ripple-demo/{s}", "gitlab_namespace": f"ripple-demo/{s}"}
+        {"name": s, "repo": f"{DEMO_NAMESPACE}/{s}", "gitlab_namespace": f"{DEMO_NAMESPACE}/{s}"}
         for s in services
     ]
 

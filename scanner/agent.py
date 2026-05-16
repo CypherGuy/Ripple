@@ -44,6 +44,10 @@ def scan_service(
 
 PATTERN TO FIND: {pattern}
 
+IMPORTANT: Match the semantic risk, not the exact wording. For example, "HTTP call with no timeout"
+means any HTTP request (requests.get, httpx.get, urllib, etc.) that does not pass a timeout parameter.
+The function does not need to be async — synchronous functions are equally dangerous.
+
 FILES:
 {files_text[:8000]}
 
