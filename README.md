@@ -37,7 +37,7 @@ FastAPI service on port 8000 with three endpoints:
 
 FastAPI service on port 8001. `POST /analyze` accepts a PR diff and returns a semantic risk pattern with a 1–10 score.
 
-The two Dynatrace MCP tools used (actual tool names discovered by querying `tools/list` against the live gateway):
+The Dynatrace MCP tools used (actual names discovered by querying `tools/list` against the live gateway):
 
 | What we call           | Dynatrace MCP tool |
 | ---------------------- | ------------------ |
@@ -45,18 +45,18 @@ The two Dynatrace MCP tools used (actual tool names discovered by querying `tool
 | Fetch span traces      | `execute-dql`      |
 | Look up services       | `get-entity-id`    |
 
-`fetch_incident_history()` calls `query-problems` with a 60-day lookback. `extract_pattern()` passes the incidents and PR diff to Gemini, which returns a natural-language description of the behavioural risk and a score. If the matched incident had a duration ≥ 47 minutes, the score is floored at 9.
+`fetch_incident_history()` calls `query-problems` with a 60-day lookback. `extract_pattern()` passes the incidents and PR diff to Gemini 2.5 Flash, which returns a natural-language description of the behavioural risk and a score. If the matched incident had a duration ≥ 47 minutes, the score is floored at 9.
 
 All tests mock the Dynatrace MCP — no live calls in the test suite.
 
 ### Phase 4 — MongoDB Institutional Memory
 
-Ripple learns from past scans. Two MongoDB collections in the `ripple` database store the outcomes of previous fix MR decisions, with the aim of modifying the risk score based on previous experiences:
+Ripple learns from past scans. Two MongoDB collections in the `ripple` database store the outcomes of previous fix MR decisions:
 
-- **`scars`** — patterns that were flagged but the fix MR was rejected (e.g. timeout intentionally absent). Each scar carries a `risk_adjustment` that lowers the score for that service.
+- **`scars`** — patterns where the fix MR was rejected (e.g. timeout intentionally absent). Each scar carries a `risk_adjustment` that lowers the score for that service.
 - **`wins`** — patterns where the fix MR was accepted and no incidents followed. Each win carries a `confidence_boost` that raises the score.
 
-`find_similar_wins()` and `find_similar_scars()` in `intelligence/tools/mongodb.py` query these collections by pattern string. The results are applied to the risk score from Phase 3 before returning from `/analyze`, and appear in `previous_scans` in the response.
+`find_similar_wins()` and `find_similar_scars()` query these collections and apply adjustments to the risk score from Phase 3 before returning from `/analyze`.
 
 ```bash
 python scripts/seed_mongodb.py
@@ -68,31 +68,45 @@ python scripts/seed_mongodb.py
 
 ### Phase 5 — Scanner Service
 
-FastAPI service on port 8002. `POST /scan` receives the pattern from Intelligence and a list of services to check, then scans all of them in parallel using `asyncio.gather()` — one Gemini call per service.
+FastAPI service on port 8002. `POST /scan` receives the pattern and a list of services, then scans all of them in parallel using `asyncio.gather()` — one Gemini call per service.
 
-`read_service_files()` in `scanner/tools/gitlab.py` fetches Python source files from a GitLab repo via the REST API. `scan_service()` passes those files to Gemini with the natural-language pattern and gets back a list of hits with file path, matching lines, and a confidence score. Services with no matching files skip the Gemini call entirely.
-
-The response includes the incident context forwarded from Intelligence and a flat hits array tagged with the service name.
+`read_service_files()` fetches Python source files from a GitLab repo via the REST API. `scan_service()` passes those files to Gemini with the natural-language pattern and returns hits with file path, matching lines, and a confidence score. Services with no files skip the Gemini call entirely.
 
 ### Phase 6 — Scanner Streaming Events
 
-Phase 5's scanner was silent — it scanned everything then returned one big result. Phase 6 makes it talk as it goes.
+Phase 5 scanned everything then returned one big result. Phase 6 makes it talk as it goes.
 
-`scanner/streaming.py` adds `emit_event()`, which fires a POST to the Orchestrator for each service the moment it finishes — before the full fan-out is done. Three event types match the contract in `docs/a2a-contracts.md`: `agent_started` fires when a service begins, `hit_found` fires with the matched lines if a pattern is found, `no_hit` fires otherwise.
+`emit_event()` in `scanner/streaming.py` fires a POST to the Orchestrator for each service the moment it finishes. Three event types: `agent_started` when a service begins, `hit_found` with matched lines if a pattern is found, `no_hit` otherwise.
 
-The Orchestrator receives these at `POST /internal/broadcast` and immediately fans them out to all connected WebSocket clients via `broadcast_event()`. This is what will drive the real-time dashboard in Phase 9.
+The Orchestrator receives these at `POST /internal/broadcast` and fans them out to all connected WebSocket clients immediately.
 
 ### Phase 7 — Fix Factory: Fix Generation
 
-FastAPI service on port 8003. `POST /fix` accepts a single hit from the Scanner and returns a unified diff patch plus a one-sentence explanation.
+FastAPI service on port 8003. `POST /fix` accepts a single hit and returns a unified diff patch plus a one-sentence explanation.
 
-Three sources of context are gathered before Gemini writes the fix: Dynatrace span traces for the incident (via `execute-dql`), closed GitLab MRs in the target repo that mention "timeout" (prior fix precedents), and per-service history from MongoDB. All three are passed to Gemini in a single prompt, which is what separates this from a generic Copilot suggestion — the fix is grounded in what specifically broke and how the team has fixed it before.
+Three context sources feed a single Gemini prompt: Dynatrace span traces for the incident (via `execute-dql`), closed GitLab MRs that mention "timeout" (prior fix precedents), and per-service MongoDB history. This is what separates the fix from a generic Copilot suggestion — it's grounded in what specifically broke and how the team has fixed it before.
 
 ### Phase 8 — Fix Factory: Self-correction Loop and MR Creation
 
-Phase 7 generated a fix. Phase 8 checks whether it's actually good enough before opening an MR.
+Phase 7 generated a fix. Phase 8 checks whether it's good enough before opening an MR.
 
-`run_with_correction()` wraps `generate_fix()` with an evaluation loop. After each fix attempt, `evaluate_fix()` asks Gemini whether the patch addresses the root cause. On failure the rationale is fed back into the next prompt as additional context, giving the fix agent a second chance. This repeats up to 3 times. On pass, `create_mr()` opens a real GitLab MR with the incident ID, duration, and cost in the description. The outcome is stored in MongoDB `ripple.outcomes` regardless of pass or fail.
+`run_with_correction()` wraps fix generation with an evaluation loop. After each attempt, `evaluate_fix()` asks Gemini whether the patch addresses the root cause. On failure the rationale feeds back into the next prompt. This repeats up to 3 times. On pass, `create_mr()` opens a real GitLab MR with the incident ID, duration, and cost in the description. The outcome is stored in `ripple.outcomes` regardless.
+
+### Phase 9 — Next.js Dashboard
+
+Real-time dashboard at `http://localhost:3000`. Connects to the Orchestrator WebSocket and renders a 5×4 grid of service tiles that transition live as scanner events arrive.
+
+- **Grey** — idle, waiting for scan to start
+- **Amber** (pulsing ring) — agent currently scanning this service
+- **Red** (glow) — pattern found, file name shown, "View MR" button when MR is open
+- **Green** — no match, service is clean
+
+A summary bar tracks scanned / hits / clean / MRs opened with a live progress bar. An incident panel across the top shows the Dynatrace incident that triggered the scan (ID, duration, estimated cost).
+
+```bash
+# Simulate a full scan without the real pipeline:
+python tests/ws_emitter.py
+```
 
 ---
 
@@ -113,11 +127,18 @@ DT_PLATFORM_TOKEN=dt0s16.xxx
 GITLAB_TOKEN=glpat-xxx
 MONGODB_URI=mongodb+srv://...
 GOOGLE_CLOUD_PROJECT=your-project-id
+GEMINI_API_KEY=AIza...
 ```
 
 ```bash
 python scripts/validate_mcps.py   # confirm connectivity
-pytest                             # 15 tests, all green
+pytest                             # 50 tests, all green
+```
+
+To run the dashboard:
+
+```bash
+cd dashboard && npm install && npm run dev
 ```
 
 ---

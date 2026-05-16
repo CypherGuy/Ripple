@@ -10,6 +10,5 @@ node_modules/
 dist/
 build/
 docs/
-CLAUDE.md
 .playwright-mcp/
 dashboard/.next/
