@@ -4,9 +4,15 @@ from google import genai
 from scanner.tools.gitlab import read_service_files
 
 
+def _gemini_client():
+    if os.environ.get("GEMINI_API_KEY"):
+        return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    return genai.Client(vertexai=True, project=os.environ["GOOGLE_CLOUD_PROJECT"], location="us-central1")
+
+
 def _default_gemini(prompt: str) -> list[dict]:
-    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
-    response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+    client = _gemini_client()
+    response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
     text = response.text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()

@@ -3,10 +3,16 @@ import json
 from google import genai
 
 
+def _gemini_client():
+    if os.environ.get("GEMINI_API_KEY"):
+        return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    return genai.Client(vertexai=True, project=os.environ["GOOGLE_CLOUD_PROJECT"], location="us-central1")
+
+
 def call_gemini(prompt: str) -> tuple[str, int, str]:
-    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
+    client = _gemini_client()
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         contents=prompt,
     )
     text = response.text.strip()
