@@ -8,19 +8,6 @@ import IncidentPanel from '../components/IncidentPanel'
 
 const TOTAL_SERVICES = 12
 const ORCHESTRATOR_URL = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? 'http://localhost:8000'
-const GITLAB_WEBHOOK_SECRET = process.env.NEXT_PUBLIC_GITLAB_WEBHOOK_SECRET ?? ''
-
-const DEMO_PAYLOAD = {
-  pr_id: 'demo-run',
-  repo: 'cypherguy-group/pulsecheck/ssl-monitor',
-  diff: '@@ -12 +12 @@ response = httpx.get(target_url)',
-  incident_context: {
-    incident_id: 'P-26051',
-    duration_minutes: 47,
-    estimated_cost: '£23,000',
-    root_cause_summary: 'PulseCheck ssl-monitor hung on slow cert check',
-  },
-}
 
 export default function Dashboard() {
   const { services, summary, reset } = useRippleSocket()
@@ -34,14 +21,7 @@ export default function Dashboard() {
     setTriggerResult(null)
     reset()
     try {
-      const r = await fetch(`${ORCHESTRATOR_URL}/webhook`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Gitlab-Token': GITLAB_WEBHOOK_SECRET,
-        },
-        body: JSON.stringify(DEMO_PAYLOAD),
-      })
+      const r = await fetch(`${ORCHESTRATOR_URL}/demo/trigger`, { method: 'POST' })
       if (r.ok) {
         setTriggerResult('Pipeline triggered')
       } else {

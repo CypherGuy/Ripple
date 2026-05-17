@@ -42,20 +42,25 @@ def _dt_fetch_incidents(diff: str) -> list[dict]:
 def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
     """Run pattern extraction via an ADK LlmAgent with a Dynatrace FunctionTool.
 
-    The LlmAgent has _dt_fetch_incidents registered as a tool so judges can
-    see genuine ADK + Dynatrace MCP integration. The prompt already contains
-    pre-fetched incident data so the tool acts as an on-demand enrichment
-    capability the model can invoke if needed.
+    The prompt contains only the raw diff. The agent decides whether to call
+    _dt_fetch_incidents to retrieve Dynatrace incident history — this is genuine
+    agentic tool use, not decorative. If the diff looks dangerous, the agent calls
+    the tool; the tool queries the Dynatrace MCP and returns real incident records
+    which the agent uses to ground its risk score and rationale.
     """
     agent = LlmAgent(
         name="ripple_pattern_extractor",
         model="gemini-2.5-flash",
         instruction=(
-            "You are a code review expert that extracts dangerous semantic patterns "
-            "from PR diffs, grounded in real production incident history from Dynatrace. "
-            "You have access to a tool that queries Dynatrace MCP for incident history. "
+            "You are a code review expert. You have a tool that queries Dynatrace MCP "
+            "for production incidents matching a code pattern. "
+            "When you receive a PR diff, call the tool to check whether this pattern has "
+            "caused real incidents in production. Use the incident data to ground your "
+            "risk assessment. "
             "Respond with a JSON object containing exactly: "
-            "pattern (string), risk_score (integer 1-10), risk_rationale (string). "
+            "pattern (string describing the dangerous semantic pattern), "
+            "risk_score (integer 1-10, use 9+ if incidents show 47+ min outages), "
+            "risk_rationale (one sentence citing the incident ID if found). "
             "No markdown, no extra fields."
         ),
         tools=[FunctionTool(_dt_fetch_incidents)],
@@ -105,7 +110,14 @@ def extract_pattern(
     duration = incident_context.get("duration_minutes", 0)
     cost = incident_context.get("estimated_cost", "unknown")
 
-    prompt = f"""You are a code review expert. Analyse this PR diff and the production incident history below.
+    if _gemini_fn is call_gemini_adk:
+        # ADK path: send only the raw diff. The LlmAgent calls _dt_fetch_incidents
+        # via FunctionTool to retrieve Dynatrace incident history itself — genuine tool use.
+        adk_prompt = f"Analyse this PR diff for dangerous patterns:\n\n{diff}"
+        pattern, risk_score, risk_rationale = _gemini_fn(adk_prompt)
+    else:
+        # Non-ADK / test path: include pre-fetched incidents in the prompt.
+        prompt = f"""You are a code review expert. Analyse this PR diff and the production incident history below.
 
 PR DIFF:
 {diff}
@@ -119,8 +131,7 @@ Return a JSON object with exactly these fields:
 - risk_rationale: one sentence explaining the score referencing the incident ID
 
 Respond with only the JSON object, no markdown."""
-
-    pattern, risk_score, risk_rationale = _gemini_fn(prompt)
+        pattern, risk_score, risk_rationale = _gemini_fn(prompt)
 
     if duration >= 47:
         risk_score = max(risk_score, 9)

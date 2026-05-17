@@ -282,3 +282,35 @@ def test_extract_pattern_still_accepts_gemini_fn_override():
     mock_adk.assert_not_called()
     assert len(override_calls) == 1
     assert result["pattern"] == "custom pattern"
+
+
+def test_call_gemini_adk_prompt_does_not_include_preloaded_incidents():
+    """The ADK agent prompt must NOT contain pre-fetched incidents.
+    The agent should call the FunctionTool to fetch them itself — that is
+    genuine agentic tool use. If incidents are pre-embedded in the prompt,
+    the tool is never needed and the ADK integration is decorative."""
+    from intelligence.agent import call_gemini_adk
+    from unittest.mock import patch, MagicMock
+
+    prompts_sent = []
+
+    def fake_runner_run(user_id, session_id, new_message):
+        prompts_sent.append(new_message.parts[0].text)
+        event = MagicMock()
+        event.is_final_response.return_value = True
+        event.content.parts = [MagicMock(text='{"pattern":"p","risk_score":8,"risk_rationale":"r"}')]
+        return [event]
+
+    with patch("intelligence.agent.LlmAgent"), \
+         patch("intelligence.agent.InMemorySessionService") as MockSvc, \
+         patch("intelligence.agent.Runner") as MockRunner:
+        MockSvc.return_value._create_session_impl.return_value = MagicMock(id="s1")
+        MockRunner.return_value.run = fake_runner_run
+        call_gemini_adk("@@ -12 +12 @@ response = httpx.get(url)")
+
+    assert prompts_sent, "Runner.run was never called"
+    # The prompt should contain the raw diff, not pre-loaded JSON incident data
+    assert "Query result records" not in prompts_seen[0] if (prompts_seen := prompts_sent) else True
+    assert "incident_id" not in prompts_sent[0], (
+        "Prompt contains pre-fetched incident data — the FunctionTool will never be called"
+    )

@@ -77,6 +77,23 @@ def test_broadcast_event_with_no_connections_does_not_raise():
     asyncio.run(broadcast_event({"event": "test"}))
 
 
+def test_demo_trigger_endpoint_exists_and_requires_no_auth(client):
+    with patch("orchestrator.routes.demo.run_pipeline", new_callable=AsyncMock) as mock:
+        mock.return_value = []
+        r = client.post("/demo/trigger")
+    assert r.status_code == 202
+
+
+def test_demo_trigger_fires_pipeline_with_pulsecheck_payload(client):
+    with patch("orchestrator.routes.demo.run_pipeline", new_callable=AsyncMock) as mock:
+        mock.return_value = []
+        client.post("/demo/trigger")
+    payload_arg = mock.call_args[0][0]
+    assert payload_arg["incident_context"]["incident_id"] == "P-26051"
+    assert "pulsecheck" in payload_arg["repo"]
+    assert payload_arg["incident_context"].get("root_cause_summary") != ""
+
+
 # ---------------------------------------------------------------------------
 # Trigger Demo button — webhook must accept incident_context in the payload
 # ---------------------------------------------------------------------------
