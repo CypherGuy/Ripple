@@ -31,6 +31,7 @@ export default function ServiceGrid({ services, onApprove, onSkip }: Props) {
             pattern: null,
             evaluatedOn: null,
             correctionIterations: null,
+            incidentId: null,
           }}
           onApprove={onApprove}
           onSkip={onSkip}

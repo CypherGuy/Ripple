@@ -104,9 +104,9 @@ export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
                 <path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </a>
-            {state.evaluatedOn === 'incident_context' && (
+            {state.evaluatedOn === 'incident_context' && state.incidentId && (
               <span className="font-mono text-[8px] text-[#fb7185]/80 uppercase tracking-wider">
-                DT-grounded
+                Incident: {state.incidentId}
               </span>
             )}
             {state.correctionIterations !== null && (
