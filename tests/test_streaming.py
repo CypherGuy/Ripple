@@ -1,8 +1,10 @@
+import os
 import pytest
 from unittest.mock import patch, MagicMock, call
 from fastapi.testclient import TestClient
 
 CALLBACK_URL = "http://localhost:8000/internal/broadcast"
+ORCHESTRATOR_URL = "http://localhost:8000"
 
 HIT = {
     "file_path": "src/clients/downstream.py",
@@ -34,7 +36,8 @@ def orchestrator_client():
 
 def test_emit_event_posts_to_callback_url():
     from scanner.streaming import emit_event
-    with patch("scanner.streaming.httpx.post") as mock_post:
+    with patch.dict(os.environ, {"ORCHESTRATOR_URL": ORCHESTRATOR_URL}), \
+         patch("scanner.streaming.httpx.post") as mock_post:
         emit_event(CALLBACK_URL, {"event": "agent_started", "service": "auth-service"})
     mock_post.assert_called_once()
     args, kwargs = mock_post.call_args
@@ -44,7 +47,8 @@ def test_emit_event_posts_to_callback_url():
 
 def test_emit_event_ignores_failures():
     from scanner.streaming import emit_event
-    with patch("scanner.streaming.httpx.post", side_effect=Exception("connection refused")):
+    with patch.dict(os.environ, {"ORCHESTRATOR_URL": ORCHESTRATOR_URL}), \
+         patch("scanner.streaming.httpx.post", side_effect=Exception("connection refused")):
         emit_event(CALLBACK_URL, {"event": "test"})  # must not raise
 
 
@@ -52,6 +56,34 @@ def test_emit_event_does_nothing_when_no_callback_url():
     from scanner.streaming import emit_event
     with patch("scanner.streaming.httpx.post") as mock_post:
         emit_event(None, {"event": "test"})
+    mock_post.assert_not_called()
+
+
+def test_validate_callback_url_accepts_orchestrator_host():
+    from scanner.streaming import validate_callback_url
+    with patch.dict(os.environ, {"ORCHESTRATOR_URL": ORCHESTRATOR_URL}):
+        validate_callback_url(CALLBACK_URL)  # must not raise
+
+
+def test_validate_callback_url_rejects_gcp_metadata():
+    from scanner.streaming import validate_callback_url
+    with patch.dict(os.environ, {"ORCHESTRATOR_URL": ORCHESTRATOR_URL}), \
+         pytest.raises(ValueError):
+        validate_callback_url("http://169.254.169.254/latest/meta-data/")
+
+
+def test_validate_callback_url_rejects_arbitrary_external_url():
+    from scanner.streaming import validate_callback_url
+    with patch.dict(os.environ, {"ORCHESTRATOR_URL": ORCHESTRATOR_URL}), \
+         pytest.raises(ValueError):
+        validate_callback_url("http://evil.example.com/steal-tokens")
+
+
+def test_emit_event_silently_skips_disallowed_url():
+    from scanner.streaming import emit_event
+    with patch.dict(os.environ, {"ORCHESTRATOR_URL": ORCHESTRATOR_URL}), \
+         patch("scanner.streaming.httpx.post") as mock_post:
+        emit_event("http://169.254.169.254/meta-data/", {"event": "agent_started"})
     mock_post.assert_not_called()
 
 
