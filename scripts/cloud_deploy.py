@@ -31,9 +31,9 @@ SECRETS = ",".join([
 ])
 
 SERVICES = {
-    "intelligence": {"name": "ripple-intelligence", "port": 8001, "env": {}},
-    "scanner":      {"name": "ripple-scanner",      "port": 8002, "env": {"ORCHESTRATOR_URL": ORCHESTRATOR_URL}},
-    "fix_factory":  {"name": "ripple-fix-factory",  "port": 8003, "env": {}},
+    "intelligence": {"name": "ripple-intelligence", "port": 8001, "min_instances": 1, "env": {}},
+    "scanner":      {"name": "ripple-scanner",      "port": 8002, "min_instances": 1, "env": {"ORCHESTRATOR_URL": ORCHESTRATOR_URL}},
+    "fix_factory":  {"name": "ripple-fix-factory",  "port": 8003, "min_instances": 1, "env": {}},
     # max-instances=1 keeps the in-memory /demo/trigger rate limiter effective
     "orchestrator": {"name": "ripple-orchestrator", "port": 8000, "max_instances": 1, "env": {
         "INTELLIGENCE_URL": "https://ripple-intelligence-mctjeick3a-nw.a.run.app",
@@ -75,7 +75,7 @@ def build(svc: str, image: str):
     return r.returncode == 0, r.stderr[-200:]
 
 
-def deploy(name: str, image: str, port: int, extra_env: dict, max_instances: int | None = None):
+def deploy(name: str, image: str, port: int, extra_env: dict, max_instances: int | None = None, min_instances: int | None = None):
     cmd = ["gcloud", "run", "deploy", name, "--image", image,
            "--region", REGION, "--project", PROJECT,
            "--allow-unauthenticated", "--set-secrets", SECRETS,
@@ -84,6 +84,8 @@ def deploy(name: str, image: str, port: int, extra_env: dict, max_instances: int
         cmd += ["--set-env-vars", ",".join(f"{k}={v}" for k, v in extra_env.items())]
     if max_instances is not None:
         cmd += ["--max-instances", str(max_instances)]
+    if min_instances is not None:
+        cmd += ["--min-instances", str(min_instances)]
     r = subprocess.run(cmd, capture_output=True, text=True)
     return r.returncode == 0, r.stderr[-150:]
 
@@ -124,7 +126,7 @@ def main():
         else:
             cfg = SERVICES[svc]
             ok, err = deploy(cfg["name"], image, cfg["port"], cfg["env"],
-                             cfg.get("max_instances"))
+                             cfg.get("max_instances"), cfg.get("min_instances"))
 
         print(f"  {'Deployed ✓' if ok else 'DEPLOY FAILED: ' + err}")
 
