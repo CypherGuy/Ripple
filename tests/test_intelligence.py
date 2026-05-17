@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 DT4821_INCIDENTS = [
@@ -97,7 +97,7 @@ def test_fetch_incident_history_raises_on_bad_token():
 
 def test_extract_pattern_returns_required_keys():
     from intelligence.agent import extract_pattern
-    with patch("intelligence.agent.call_gemini", return_value=(
+    with patch("intelligence.agent.call_gemini_adk", return_value=(
         "HTTP call with no timeout.", 9, "Matches DT-4821."
     )):
         result = extract_pattern(SAMPLE_DIFF, DT4821_INCIDENTS)
@@ -106,3 +106,179 @@ def test_extract_pattern_returns_required_keys():
     assert "risk_rationale" in result
     assert "incident_context" in result
     assert "previous_scans" in result
+
+
+# ---------------------------------------------------------------------------
+# call_gemini_adk — ADK LlmAgent integration (RED: these fail until implemented)
+# ---------------------------------------------------------------------------
+
+def _make_final_event(text: str):
+    """Return a mock ADK Event whose is_final_response() returns True."""
+    from unittest.mock import MagicMock
+    event = MagicMock()
+    event.is_final_response.return_value = True
+    event.content = MagicMock()
+    event.content.parts = [MagicMock(text=text)]
+    return event
+
+
+def _make_non_final_event():
+    from unittest.mock import MagicMock
+    event = MagicMock()
+    event.is_final_response.return_value = False
+    return event
+
+
+def test_call_gemini_adk_returns_pattern_score_rationale_tuple():
+    """call_gemini_adk parses the ADK final event into (pattern, score, rationale)."""
+    from intelligence.agent import call_gemini_adk
+
+    payload = '{"pattern": "HTTP call without timeout", "risk_score": 9, "risk_rationale": "Matches DT-4821 (47-min outage)"}'
+    final = _make_final_event(payload)
+
+    with patch("intelligence.agent.Runner") as MockRunner:
+        MockRunner.return_value.run.return_value = iter([_make_non_final_event(), final])
+        pattern, score, rationale = call_gemini_adk("some prompt")
+
+    assert pattern == "HTTP call without timeout"
+    assert score == 9
+    assert "DT-4821" in rationale
+
+
+def test_call_gemini_adk_passes_prompt_as_content_to_runner():
+    """call_gemini_adk passes the prompt text wrapped in a genai Content object."""
+    from intelligence.agent import call_gemini_adk
+    from google.genai import types as genai_types
+
+    final = _make_final_event('{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
+    run_calls = []
+
+    def capture_run(**kwargs):
+        run_calls.append(kwargs)
+        return iter([final])
+
+    with patch("intelligence.agent.Runner") as MockRunner:
+        MockRunner.return_value.run.side_effect = capture_run
+        call_gemini_adk("check this diff please")
+
+    assert len(run_calls) == 1
+    msg = run_calls[0]["new_message"]
+    assert isinstance(msg, genai_types.Content)
+    assert any("check this diff please" in (p.text or "") for p in msg.parts)
+
+
+def test_call_gemini_adk_creates_llm_agent_with_function_tool():
+    """call_gemini_adk constructs an LlmAgent that has at least one FunctionTool."""
+    from intelligence.agent import call_gemini_adk
+    from google.adk.tools import FunctionTool
+    from google.adk.agents import LlmAgent as RealLlmAgent
+
+    final = _make_final_event('{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
+
+    with patch("intelligence.agent.Runner") as MockRunner, \
+         patch("intelligence.agent.LlmAgent", side_effect=RealLlmAgent) as MockLlmAgent:
+        MockRunner.return_value.run.return_value = iter([final])
+        call_gemini_adk("prompt")
+
+    assert MockLlmAgent.called, "LlmAgent was never instantiated"
+    tools = MockLlmAgent.call_args[1].get("tools", [])
+    assert any(isinstance(t, FunctionTool) for t in tools), \
+        f"Expected at least one FunctionTool in tools, got: {tools}"
+
+
+def test_call_gemini_adk_llm_agent_uses_gemini_model():
+    """The LlmAgent is configured with a gemini model string."""
+    from intelligence.agent import call_gemini_adk
+
+    final = _make_final_event('{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
+
+    with patch("intelligence.agent.Runner") as MockRunner, \
+         patch("intelligence.agent.LlmAgent") as MockLlmAgent:
+        MockLlmAgent.return_value = MagicMock()
+        MockRunner.return_value.run.return_value = iter([final])
+        call_gemini_adk("prompt")
+
+    model = MockLlmAgent.call_args[1].get("model", "")
+    assert "gemini" in model.lower(), f"Expected gemini model, got: {model!r}"
+
+
+def test_call_gemini_adk_runner_receives_llm_agent_instance():
+    """Runner is initialised with the LlmAgent instance created by call_gemini_adk."""
+    from intelligence.agent import call_gemini_adk
+    from unittest.mock import MagicMock
+
+    final = _make_final_event('{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
+    mock_agent = MagicMock()
+
+    with patch("intelligence.agent.LlmAgent", return_value=mock_agent), \
+         patch("intelligence.agent.Runner") as MockRunner:
+        MockRunner.return_value.run.return_value = iter([final])
+        call_gemini_adk("prompt")
+
+    runner_kwargs = MockRunner.call_args[1]
+    assert runner_kwargs.get("agent") is mock_agent
+
+
+def test_call_gemini_adk_falls_back_when_json_unparseable():
+    """Returns (raw_text, 5, fallback_rationale) when the event text is not valid JSON."""
+    from intelligence.agent import call_gemini_adk
+
+    final = _make_final_event("This is not JSON.")
+
+    with patch("intelligence.agent.Runner") as MockRunner:
+        MockRunner.return_value.run.return_value = iter([final])
+        pattern, score, rationale = call_gemini_adk("prompt")
+
+    assert score == 5
+    assert isinstance(pattern, str)
+    assert isinstance(rationale, str)
+
+
+def test_call_gemini_adk_falls_back_when_no_final_event():
+    """Returns fallback tuple when no event is a final response."""
+    from intelligence.agent import call_gemini_adk
+
+    with patch("intelligence.agent.Runner") as MockRunner:
+        MockRunner.return_value.run.return_value = iter([_make_non_final_event()])
+        _, score, _ = call_gemini_adk("prompt")
+
+    assert score == 5
+
+
+def test_extract_pattern_calls_adk_when_no_gemini_fn_given():
+    """extract_pattern uses call_gemini_adk by default (no _gemini_fn supplied)."""
+    from intelligence.agent import extract_pattern
+
+    adk_calls = []
+
+    def fake_adk(prompt: str):
+        adk_calls.append(prompt)
+        return ("HTTP call without timeout", 9, "Matches DT-4821")
+
+    with patch("intelligence.agent.call_gemini_adk", side_effect=fake_adk):
+        result = extract_pattern(
+            diff="@@ -12 +12 @@ response = httpx.get(url)",
+            incidents=[{"incident_id": "DT-4821", "duration_minutes": 47}],
+        )
+
+    assert len(adk_calls) == 1
+    assert result["pattern"] == "HTTP call without timeout"
+    assert result["risk_score"] == 9
+
+
+def test_extract_pattern_still_accepts_gemini_fn_override():
+    """When _gemini_fn is supplied, extract_pattern uses it and skips ADK."""
+    from intelligence.agent import extract_pattern
+
+    override_calls = []
+
+    def my_fn(prompt: str):
+        override_calls.append(prompt)
+        return ("custom pattern", 7, "custom rationale")
+
+    with patch("intelligence.agent.call_gemini_adk") as mock_adk:
+        result = extract_pattern(diff="diff", incidents=[], _gemini_fn=my_fn)
+
+    mock_adk.assert_not_called()
+    assert len(override_calls) == 1
+    assert result["pattern"] == "custom pattern"

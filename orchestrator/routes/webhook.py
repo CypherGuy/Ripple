@@ -10,6 +10,7 @@ class WebhookPayload(BaseModel):
     pr_id: str
     repo: str | None = None
     diff: str | None = None
+    incident_context: dict | None = None
 
 
 @router.post("/webhook", status_code=202)
