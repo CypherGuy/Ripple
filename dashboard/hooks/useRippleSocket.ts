@@ -22,7 +22,10 @@ export interface ScanSummary {
   connected: boolean
 }
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:8000/ws'
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL
+  ?? (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? 'wss://ripple-orchestrator-mctjeick3a-nw.a.run.app/ws'
+    : 'ws://localhost:8000/ws')
 
 export function useRippleSocket() {
   const [services, setServices] = useState<Map<string, ServiceState>>(new Map())

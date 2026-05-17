@@ -7,7 +7,10 @@ import SummaryBar from '../components/SummaryBar'
 import IncidentPanel from '../components/IncidentPanel'
 
 const TOTAL_SERVICES = 12
-const ORCHESTRATOR_URL = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? 'http://localhost:8000'
+const ORCHESTRATOR_URL = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL
+  ?? (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? 'https://ripple-orchestrator-mctjeick3a-nw.a.run.app'
+    : 'http://localhost:8000')
 
 export default function Dashboard() {
   const { services, summary, reset } = useRippleSocket()
