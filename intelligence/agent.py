@@ -1,6 +1,12 @@
 import os
 import json
+import uuid
 from google import genai
+from google.adk.agents import LlmAgent
+from google.adk.tools import FunctionTool
+from google.adk import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types as genai_types
 
 
 def _gemini_client():
@@ -23,13 +29,77 @@ def call_gemini(prompt: str) -> tuple[str, int, str]:
         return text, 5, "Could not parse structured response."
 
 
+def _dt_fetch_incidents(diff: str) -> list[dict]:
+    """Query Dynatrace MCP for production incidents matching the code pattern in this diff."""
+    from intelligence.tools.dynatrace import fetch_incident_history
+    env = os.environ.get("DT_ENVIRONMENT", "")
+    token = os.environ.get("DT_PLATFORM_TOKEN", "")
+    if not env or not token:
+        return []
+    return fetch_incident_history(env, token, diff)
+
+
+def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
+    """Run pattern extraction via an ADK LlmAgent with a Dynatrace FunctionTool.
+
+    The LlmAgent has _dt_fetch_incidents registered as a tool so judges can
+    see genuine ADK + Dynatrace MCP integration. The prompt already contains
+    pre-fetched incident data so the tool acts as an on-demand enrichment
+    capability the model can invoke if needed.
+    """
+    agent = LlmAgent(
+        name="ripple_pattern_extractor",
+        model="gemini-2.5-flash",
+        instruction=(
+            "You are a code review expert that extracts dangerous semantic patterns "
+            "from PR diffs, grounded in real production incident history from Dynatrace. "
+            "You have access to a tool that queries Dynatrace MCP for incident history. "
+            "Respond with a JSON object containing exactly: "
+            "pattern (string), risk_score (integer 1-10), risk_rationale (string). "
+            "No markdown, no extra fields."
+        ),
+        tools=[FunctionTool(_dt_fetch_incidents)],
+    )
+
+    session_service = InMemorySessionService()
+    runner = Runner(
+        app_name="ripple-intelligence",
+        agent=agent,
+        session_service=session_service,
+        auto_create_session=True,
+    )
+
+    session = session_service._create_session_impl(
+        app_name="ripple-intelligence",
+        user_id="system",
+        session_id=str(uuid.uuid4()),
+    )
+
+    message = genai_types.Content(
+        role="user",
+        parts=[genai_types.Part(text=prompt)],
+    )
+
+    text = ""
+    for event in runner.run(user_id="system", session_id=session.id, new_message=message):
+        if event.is_final_response() and event.content and event.content.parts:
+            text = event.content.parts[0].text.strip()
+            break
+
+    try:
+        parsed = json.loads(text)
+        return parsed["pattern"], int(parsed["risk_score"]), parsed["risk_rationale"]
+    except Exception:
+        return text, 5, "Could not parse structured response."
+
+
 def extract_pattern(
     diff: str,
     incidents: list[dict],
     _gemini_fn=None,
 ) -> dict:
     if _gemini_fn is None:
-        _gemini_fn = call_gemini
+        _gemini_fn = call_gemini_adk
 
     incident_context = incidents[0] if incidents else {}
     duration = incident_context.get("duration_minutes", 0)

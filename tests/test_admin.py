@@ -1,6 +1,9 @@
+import os
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
+
+ADMIN_SECRET = "test-admin-secret"
 
 
 @pytest.fixture
@@ -10,15 +13,33 @@ def client():
 
 
 def test_close_mrs_endpoint_exists(client):
-    with patch("orchestrator.routes.admin.close_all_ripple_mrs", return_value={"closed": 0, "errors": 0}):
-        r = client.post("/admin/close-mrs")
+    with patch.dict(os.environ, {"ADMIN_SECRET": ADMIN_SECRET}), \
+         patch("orchestrator.routes.admin.close_all_ripple_mrs", return_value={"closed": 0, "errors": 0}):
+        r = client.post("/admin/close-mrs", headers={"X-Admin-Secret": ADMIN_SECRET})
     assert r.status_code == 200
 
 
 def test_close_mrs_returns_closed_count(client):
-    with patch("orchestrator.routes.admin.close_all_ripple_mrs", return_value={"closed": 7, "errors": 0}):
-        r = client.post("/admin/close-mrs")
+    with patch.dict(os.environ, {"ADMIN_SECRET": ADMIN_SECRET}), \
+         patch("orchestrator.routes.admin.close_all_ripple_mrs", return_value={"closed": 7, "errors": 0}):
+        r = client.post("/admin/close-mrs", headers={"X-Admin-Secret": ADMIN_SECRET})
     assert r.json()["closed"] == 7
+
+
+def test_close_mrs_rejects_missing_secret(client):
+    with patch.dict(os.environ, {"ADMIN_SECRET": ADMIN_SECRET}), \
+         patch("orchestrator.routes.admin.close_all_ripple_mrs") as mock_close:
+        r = client.post("/admin/close-mrs")
+    assert r.status_code == 403
+    mock_close.assert_not_called()
+
+
+def test_close_mrs_rejects_wrong_secret(client):
+    with patch.dict(os.environ, {"ADMIN_SECRET": ADMIN_SECRET}), \
+         patch("orchestrator.routes.admin.close_all_ripple_mrs") as mock_close:
+        r = client.post("/admin/close-mrs", headers={"X-Admin-Secret": "wrong"})
+    assert r.status_code == 403
+    mock_close.assert_not_called()
 
 
 def test_close_mrs_calls_gitlab_per_service():

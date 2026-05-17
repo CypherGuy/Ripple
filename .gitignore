@@ -13,3 +13,5 @@ docs/
 .playwright-mcp/
 dashboard/.next/
 .vscode/
+.incident_context.json
+.worktrees/

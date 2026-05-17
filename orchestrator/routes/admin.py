@@ -1,6 +1,6 @@
 import os
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, Header, HTTPException
 
 router = APIRouter()
 
@@ -42,7 +42,10 @@ def close_all_ripple_mrs(namespaces: list[str], token: str) -> dict:
 
 
 @router.post("/admin/close-mrs")
-async def close_mrs():
+async def close_mrs(x_admin_secret: str | None = Header(default=None)):
+    expected = os.environ.get("ADMIN_SECRET", "")
+    if not expected or x_admin_secret != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
     from orchestrator.pipeline import get_service_list
     token = os.environ.get("GITLAB_TOKEN", "")
     namespaces = [s["gitlab_namespace"] for s in get_service_list()]

@@ -7,11 +7,52 @@ import IncidentPanel from '../components/IncidentPanel'
 
 const TOTAL_SERVICES = 12
 const ORCHESTRATOR_URL = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL ?? 'http://localhost:8000'
+const GITLAB_WEBHOOK_SECRET = process.env.NEXT_PUBLIC_GITLAB_WEBHOOK_SECRET ?? ''
+
+const DEMO_PAYLOAD = {
+  pr_id: 'demo-run',
+  repo: 'cypherguy-group/pulsecheck/ssl-monitor',
+  diff: '@@ -12 +12 @@ response = httpx.get(target_url)',
+  incident_context: {
+    incident_id: 'P-26051',
+    duration_minutes: 47,
+    estimated_cost: '£23,000',
+    root_cause_summary: 'PulseCheck ssl-monitor hung on slow cert check',
+  },
+}
 
 export default function Dashboard() {
   const { services, summary, reset } = useRippleSocket()
   const [closing, setClosing] = useState(false)
   const [closeResult, setCloseResult] = useState<string | null>(null)
+  const [triggering, setTriggering] = useState(false)
+  const [triggerResult, setTriggerResult] = useState<string | null>(null)
+
+  async function triggerDemo() {
+    setTriggering(true)
+    setTriggerResult(null)
+    reset()
+    try {
+      const r = await fetch(`${ORCHESTRATOR_URL}/webhook`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Gitlab-Token': GITLAB_WEBHOOK_SECRET,
+        },
+        body: JSON.stringify(DEMO_PAYLOAD),
+      })
+      if (r.ok) {
+        setTriggerResult('Pipeline triggered')
+      } else {
+        setTriggerResult(`Error ${r.status}`)
+      }
+    } catch {
+      setTriggerResult('Failed to trigger')
+    } finally {
+      setTriggering(false)
+      setTimeout(() => setTriggerResult(null), 4000)
+    }
+  }
 
   async function closeAllMrs() {
     setClosing(true)
@@ -70,6 +111,28 @@ export default function Dashboard() {
               {closeResult && (
                 <span className="font-mono text-[9px] text-ripple-clean animate-slide-in">
                   {closeResult}
+                </span>
+              )}
+            </div>
+
+            {/* Trigger Demo button */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={triggerDemo}
+                disabled={triggering}
+                className={[
+                  'font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded border transition-all duration-150 cursor-pointer',
+                  'border-ripple-accent/60 text-ripple-accent hover:border-ripple-accent hover:bg-ripple-accent/10',
+                  'disabled:opacity-40 disabled:cursor-not-allowed',
+                  'focus:outline-none focus:ring-1 focus:ring-ripple-accent/40',
+                ].join(' ')}
+                aria-label="Trigger demo pipeline run"
+              >
+                {triggering ? 'Triggering…' : 'Trigger Demo'}
+              </button>
+              {triggerResult && (
+                <span className="font-mono text-[9px] text-ripple-accent animate-slide-in">
+                  {triggerResult}
                 </span>
               )}
             </div>

@@ -50,8 +50,11 @@ async def run_pipeline(
                 timeout=120,
             )
             intel = _safe_json(intel_r, {"pattern": payload.get("diff", ""), "incident_context": {}, "previous_scans": []})
+            # Merge webhook-supplied incident_context as fallback when intel returns none
+            if not intel.get("incident_context") and payload.get("incident_context"):
+                intel["incident_context"] = payload["incident_context"]
         except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Intelligence service error: {e}")
+            raise HTTPException(status_code=502, detail="upstream service error")
 
         if not intel.get("pattern"):
             raise HTTPException(status_code=502, detail="Intelligence returned no pattern")

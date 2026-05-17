@@ -99,10 +99,53 @@ def test_post_fix_rejects_missing_file_path(client):
     assert r.status_code == 422
 
 
+def test_generate_fix_prompt_uses_incident_id_not_trace_ids():
+    from fix_factory.agent import generate_fix
+    prompts_seen = []
+    def capture(prompt):
+        prompts_seen.append(prompt)
+        return (MOCK_OLD_LINE, MOCK_NEW_LINE, MOCK_EXPLANATION)
+    hit = {**AUTH_HIT, "incident_context": {"incident_id": "P-26051", "root_cause_summary": "ssl-monitor hung"}}
+    generate_fix(hit, traces=[], precedents=[], _gemini_fn=capture)
+    assert "P-26051" in prompts_seen[0]
+    assert "always use the incident ID" in prompts_seen[0].lower() or "incident_id" in prompts_seen[0].lower()
+
+
 def test_get_incident_traces_raises_on_bad_credentials():
     from fix_factory.tools.dynatrace_traces import get_incident_traces
     with pytest.raises(Exception):
         get_incident_traces("bad.env.com", "bad-token", "DT-4821")
+
+
+def test_validate_incident_id_accepts_valid_ids():
+    from fix_factory.tools.dynatrace_traces import validate_incident_id
+    validate_incident_id("DT-4821")
+    validate_incident_id("P-12345")
+    validate_incident_id("PROB-1")
+
+
+def test_validate_incident_id_rejects_injection_payload():
+    from fix_factory.tools.dynatrace_traces import validate_incident_id
+    with pytest.raises(ValueError):
+        validate_incident_id('" | fetch logs | limit 100 //')
+
+
+def test_validate_incident_id_rejects_empty_string():
+    from fix_factory.tools.dynatrace_traces import validate_incident_id
+    with pytest.raises(ValueError):
+        validate_incident_id("")
+
+
+def test_validate_incident_id_rejects_spaces():
+    from fix_factory.tools.dynatrace_traces import validate_incident_id
+    with pytest.raises(ValueError):
+        validate_incident_id("DT 4821")
+
+
+def test_get_incident_traces_rejects_invalid_incident_id():
+    from fix_factory.tools.dynatrace_traces import get_incident_traces
+    with pytest.raises(ValueError):
+        get_incident_traces("env.example.com", "token", '" | fetch logs')
 
 
 # --- _apply_patch unit tests ---
