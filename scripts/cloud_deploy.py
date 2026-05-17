@@ -33,7 +33,8 @@ SERVICES = {
     "intelligence": {"name": "ripple-intelligence", "port": 8001, "env": {}},
     "scanner":      {"name": "ripple-scanner",      "port": 8002, "env": {"ORCHESTRATOR_URL": ORCHESTRATOR_URL}},
     "fix_factory":  {"name": "ripple-fix-factory",  "port": 8003, "env": {}},
-    "orchestrator": {"name": "ripple-orchestrator", "port": 8000, "env": {
+    # max-instances=1 keeps the in-memory /demo/trigger rate limiter effective
+    "orchestrator": {"name": "ripple-orchestrator", "port": 8000, "max_instances": 1, "env": {
         "INTELLIGENCE_URL": "https://ripple-intelligence-mctjeick3a-nw.a.run.app",
         "SCANNER_URL":      "https://ripple-scanner-mctjeick3a-nw.a.run.app",
         "FIX_FACTORY_URL":  "https://ripple-fix-factory-mctjeick3a-nw.a.run.app",
@@ -63,13 +64,15 @@ def build(svc: str, image: str):
     return r.returncode == 0, r.stderr[-200:]
 
 
-def deploy(name: str, image: str, port: int, extra_env: dict):
+def deploy(name: str, image: str, port: int, extra_env: dict, max_instances: int | None = None):
     cmd = ["gcloud", "run", "deploy", name, "--image", image,
            "--region", REGION, "--project", PROJECT,
            "--allow-unauthenticated", "--set-secrets", SECRETS,
            "--memory", "1Gi", "--timeout", "300", "--port", str(port), "--quiet"]
     if extra_env:
         cmd += ["--set-env-vars", ",".join(f"{k}={v}" for k, v in extra_env.items())]
+    if max_instances is not None:
+        cmd += ["--max-instances", str(max_instances)]
     r = subprocess.run(cmd, capture_output=True, text=True)
     return r.returncode == 0, r.stderr[-150:]
 
@@ -109,7 +112,8 @@ def main():
             ok, err = deploy_dashboard(image)
         else:
             cfg = SERVICES[svc]
-            ok, err = deploy(cfg["name"], image, cfg["port"], cfg["env"])
+            ok, err = deploy(cfg["name"], image, cfg["port"], cfg["env"],
+                             cfg.get("max_instances"))
 
         print(f"  {'Deployed ✓' if ok else 'DEPLOY FAILED: ' + err}")
 
