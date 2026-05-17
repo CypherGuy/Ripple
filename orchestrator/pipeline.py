@@ -91,6 +91,7 @@ async def fix_hit(
                     "service": hit.get("service"),
                     "mr_url": result["mr_url"],
                     "evaluated_on": result.get("evaluated_on", "technical_merit"),
+                    "correction_iterations": result.get("correction_iterations", 1),
                 },
                 headers={"X-Internal-Secret": internal_secret},
                 timeout=5,

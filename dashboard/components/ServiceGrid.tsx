@@ -30,6 +30,7 @@ export default function ServiceGrid({ services, onApprove, onSkip }: Props) {
             riskScore: null,
             pattern: null,
             evaluatedOn: null,
+            correctionIterations: null,
           }}
           onApprove={onApprove}
           onSkip={onSkip}

@@ -12,6 +12,7 @@ export interface ServiceState {
   riskScore: number | null
   pattern: string | null
   evaluatedOn: 'incident_context' | 'technical_merit' | null
+  correctionIterations: number | null
 }
 
 export interface ScanSummary {
@@ -68,7 +69,7 @@ export function useRippleSocket() {
             const current = next.get(svc) ?? {
               status: 'idle' as ServiceStatus,
               mrUrl: null, fileHit: null, confidence: null, timestamp: null,
-              riskScore: null, pattern: null, evaluatedOn: null,
+              riskScore: null, pattern: null, evaluatedOn: null, correctionIterations: null,
             }
 
             if (event.event === 'agent_started') {
@@ -83,6 +84,7 @@ export function useRippleSocket() {
                 riskScore: null,
                 pattern: null,
                 evaluatedOn: null,
+                correctionIterations: null,
               })
               if (!settled.current.has(svc)) {
                 settled.current.add(svc)
@@ -107,6 +109,7 @@ export function useRippleSocket() {
                 ...current,
                 mrUrl: event.mr_url,
                 evaluatedOn: event.evaluated_on ?? null,
+                correctionIterations: event.correction_iterations ?? null,
               })
               if (event.mr_url && !settledMrUrls.current.has(event.mr_url)) {
                 settledMrUrls.current.add(event.mr_url)
