@@ -56,6 +56,24 @@ async def run_pipeline(
         except Exception as e:
             raise HTTPException(status_code=502, detail="upstream service error")
 
+        # Normalise Intelligence's incident_context:
+        # - map Dynatrace field names to Ripple's expected names
+        # - remove internal event.id so Gemini can't cite it instead of the display ID
+        # - fill remaining gaps from the webhook-provided incident_context
+        intel_ctx = intel.get("incident_context", {})
+        if intel_ctx.get("display_id") and not intel_ctx.get("incident_id"):
+            intel_ctx["incident_id"] = intel_ctx["display_id"]
+        if intel_ctx.get("event.description") and not intel_ctx.get("root_cause_summary"):
+            intel_ctx["root_cause_summary"] = intel_ctx["event.description"][:500]
+        intel_ctx.pop("event.id", None)
+
+        _MISSING = {"", "no summary provided.", "no summary provided", "none"}
+        for key, val in payload.get("incident_context", {}).items():
+            current = intel_ctx.get(key, "")
+            if not current or (isinstance(current, str) and current.strip().lower() in _MISSING):
+                intel_ctx[key] = val
+        intel["incident_context"] = intel_ctx
+
         if not intel.get("pattern"):
             raise HTTPException(status_code=502, detail="Intelligence returned no pattern")
 
@@ -100,9 +118,11 @@ async def run_pipeline(
 
             if result.get("mr_url"):
                 try:
+                    internal_secret = os.environ.get("INTERNAL_SECRET", "")
                     await _client.post(
                         f"{ORCHESTRATOR_URL}/internal/broadcast",
                         json={"event": "mr_opened", "service": hit.get("service"), "mr_url": result["mr_url"]},
+                        headers={"X-Internal-Secret": internal_secret},
                         timeout=5,
                     )
                 except Exception:

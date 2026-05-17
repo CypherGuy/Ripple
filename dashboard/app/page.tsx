@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRippleSocket } from '../hooks/useRippleSocket'
 import ServiceGrid from '../components/ServiceGrid'
 import SummaryBar from '../components/SummaryBar'
@@ -58,7 +59,10 @@ export default function Dashboard() {
     setClosing(true)
     setCloseResult(null)
     try {
-      const r = await fetch(`${ORCHESTRATOR_URL}/admin/close-mrs`, { method: 'POST' })
+      const r = await fetch(`${ORCHESTRATOR_URL}/admin/close-mrs`, {
+        method: 'POST',
+        headers: { 'X-Admin-Secret': process.env.NEXT_PUBLIC_ADMIN_SECRET ?? '' },
+      })
       const data = await r.json()
       setCloseResult(`Closed ${data.closed} MR${data.closed !== 1 ? 's' : ''}`)
       reset()
@@ -149,6 +153,14 @@ export default function Dashboard() {
             >
               Reset
             </button>
+
+            {/* About link */}
+            <Link
+              href="/about"
+              className="font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded border border-white/10 text-ripple-subtle hover:border-white/20 hover:text-ripple-text transition-colors"
+            >
+              About
+            </Link>
 
             {/* Live badge */}
             {summary.connected && (

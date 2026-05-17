@@ -58,6 +58,9 @@ Generate a minimal fix. Return JSON with exactly three fields:
 - new_line: the replacement line, including leading whitespace (add timeout=5 to the HTTP call)
 - fix_explanation: one sentence citing the incident ID and what the fix prevents
 
+IMPORTANT: In fix_explanation, always cite the incident_id from INCIDENT CONTEXT (e.g. {ctx.get('incident_id', 'unknown')}).
+Never use internal trace IDs or correlation IDs from the Dynatrace trace data.
+
 Respond with only the JSON object, no markdown."""
 
     old_line, new_line, explanation = _gemini_fn(prompt)

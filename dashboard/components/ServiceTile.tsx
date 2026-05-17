@@ -76,7 +76,7 @@ export default function ServiceTile({ name, state }: Props) {
 
       {/* Footer */}
       <div className="mt-2">
-        {state.status === 'hit' && state.mrUrl && (
+        {state.status === 'hit' && state.mrUrl && state.mrUrl.startsWith('https://gitlab.com/') && (
           <a
             href={state.mrUrl}
             target="_blank"

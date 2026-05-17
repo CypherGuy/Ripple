@@ -16,7 +16,13 @@ def emit_event(callback_url: str | None, data: dict) -> None:
         return
     try:
         validate_callback_url(callback_url)
-        httpx.post(callback_url, json=data, timeout=5)
+        internal_secret = os.environ.get("INTERNAL_SECRET", "")
+        httpx.post(
+            callback_url,
+            json=data,
+            headers={"X-Internal-Secret": internal_secret},
+            timeout=5,
+        )
     except ValueError:
         pass
     except Exception:

@@ -111,6 +111,26 @@ def test_generate_fix_prompt_uses_incident_id_not_trace_ids():
     assert "always use the incident ID" in prompts_seen[0].lower() or "incident_id" in prompts_seen[0].lower()
 
 
+def test_post_fix_rejects_unknown_service(client):
+    bad = {**AUTH_HIT, "service": "../../etc/passwd"}
+    with patch("fix_factory.routes.fix.get_incident_traces", return_value=[]), \
+         patch("fix_factory.routes.fix.get_fix_precedents", return_value=[]):
+        r = client.post("/fix", json=bad)
+    assert r.status_code == 400
+
+
+def test_post_fix_accepts_known_service(client):
+    with patch("fix_factory.routes.fix.get_incident_traces", return_value=[]), \
+         patch("fix_factory.routes.fix.get_fix_precedents", return_value=[]), \
+         patch("fix_factory.routes.fix.run_with_correction", return_value={
+             "patch": MOCK_PATCH, "old_line": MOCK_OLD_LINE, "new_line": MOCK_NEW_LINE,
+             "fix_explanation": MOCK_EXPLANATION, "mr_url": None,
+             "self_correction_passed": True, "correction_iterations": 1, "failure_reason": None,
+         }):
+        r = client.post("/fix", json={**AUTH_HIT, "service": "http-monitor"})
+    assert r.status_code == 200
+
+
 def test_get_incident_traces_raises_on_bad_credentials():
     from fix_factory.tools.dynatrace_traces import get_incident_traces
     with pytest.raises(Exception):

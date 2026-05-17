@@ -140,6 +140,43 @@ def test_pipeline_calls_fix_factory_once_per_hit():
     assert fix_call_count["n"] == 2
 
 
+def test_pipeline_merges_webhook_incident_context_into_intelligence_response():
+    from orchestrator.pipeline import run_pipeline
+    import asyncio
+
+    fix_incident_contexts = []
+
+    async def mock_post(url, **kwargs):
+        r = MagicMock()
+        if "analyze" in url:
+            # Intelligence returns incident_context WITHOUT root_cause_summary
+            r.json.return_value = {**MOCK_INTEL, "incident_context": {"incident_id": "P-26051"}}
+        elif "scan" in url:
+            r.json.return_value = {"hits": MOCK_SCAN_HITS}
+        elif "fix" in url:
+            fix_incident_contexts.append(kwargs.get("json", {}).get("incident_context", {}))
+            r.json.return_value = MOCK_FIX
+        elif "broadcast" in url:
+            r.json.return_value = {"ok": True}
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.post = mock_post
+
+    payload = {**WEBHOOK_PAYLOAD, "incident_context": {
+        "incident_id": "P-26051",
+        "root_cause_summary": "ssl-monitor hung on slow cert check",
+        "duration_minutes": 47,
+    }}
+    asyncio.run(run_pipeline(payload, "trace-123", _client=mock_client))
+
+    assert len(fix_incident_contexts) == 1
+    ctx = fix_incident_contexts[0]
+    # root_cause_summary should be filled in from webhook since Intelligence didn't return it
+    assert ctx.get("root_cause_summary") == "ssl-monitor hung on slow cert check"
+    assert ctx.get("incident_id") == "P-26051"
+
+
 def test_pipeline_deduplicates_hits_by_service():
     from orchestrator.pipeline import run_pipeline
     import asyncio

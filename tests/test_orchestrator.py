@@ -36,6 +36,37 @@ def test_webhook_rejects_missing_pr_id(client):
     assert r.status_code == 422
 
 
+def test_webhook_rejects_wrong_gitlab_token(client):
+    import os
+    os.environ["GITLAB_WEBHOOK_SECRET"] = "correct-secret"
+    with patch("orchestrator.routes.webhook.run_pipeline", new_callable=AsyncMock) as mock:
+        mock.return_value = []
+        r = client.post("/webhook",
+                        json={"pr_id": "1", "diff": "x"},
+                        headers={"X-Gitlab-Token": "wrong-secret"})
+    assert r.status_code == 403
+
+
+def test_webhook_accepts_correct_gitlab_token(client):
+    import os
+    os.environ["GITLAB_WEBHOOK_SECRET"] = "correct-secret"
+    with patch("orchestrator.routes.webhook.run_pipeline", new_callable=AsyncMock) as mock:
+        mock.return_value = []
+        r = client.post("/webhook",
+                        json={"pr_id": "1", "diff": "x"},
+                        headers={"X-Gitlab-Token": "correct-secret"})
+    assert r.status_code == 202
+
+
+def test_webhook_passes_when_no_secret_configured(client):
+    import os
+    os.environ.pop("GITLAB_WEBHOOK_SECRET", None)
+    with patch("orchestrator.routes.webhook.run_pipeline", new_callable=AsyncMock) as mock:
+        mock.return_value = []
+        r = client.post("/webhook", json={"pr_id": "1", "diff": "x"})
+    assert r.status_code == 202
+
+
 def test_websocket_accepts_connection(client):
     with client.websocket_connect("/ws"):
         pass
