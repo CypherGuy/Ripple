@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [closeResult, setCloseResult] = useState<string | null>(null)
   const [triggering, setTriggering] = useState(false)
   const [triggerResult, setTriggerResult] = useState<string | null>(null)
+  const [approvingServices, setApprovingServices] = useState<Set<string>>(new Set())
 
   async function triggerDemo() {
     setTriggering(true)
@@ -33,6 +34,24 @@ export default function Dashboard() {
       setTriggering(false)
       setTimeout(() => setTriggerResult(null), 4000)
     }
+  }
+
+  async function approveService(service: string) {
+    setApprovingServices(prev => new Set(prev).add(service))
+    try {
+      const internalSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? ''
+      await fetch(`${ORCHESTRATOR_URL}/internal/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Internal-Secret': internalSecret },
+        body: JSON.stringify({ service }),
+      })
+    } finally {
+      setApprovingServices(prev => { const s = new Set(prev); s.delete(service); return s })
+    }
+  }
+
+  function skipService(service: string) {
+    reset()
   }
 
   async function closeAllMrs() {
@@ -187,7 +206,7 @@ export default function Dashboard() {
         </div>
 
         {/* Service grid */}
-        <ServiceGrid services={services} />
+        <ServiceGrid services={services} onApprove={approveService} onSkip={skipService} />
 
         {/* Footer */}
         <footer className="mt-auto pt-4 border-t border-white/5">

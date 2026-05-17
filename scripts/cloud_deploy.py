@@ -27,6 +27,7 @@ SECRETS = ",".join([
     "DEMO_NAMESPACE=ripple-demo-namespace:latest",
     "INTERNAL_SECRET=ripple-internal-secret:latest",
     "ADMIN_SECRET=ripple-admin-secret:latest",
+    "GITLAB_WEBHOOK_SECRET=ripple-gitlab-webhook-secret:latest",
 ])
 
 SERVICES = {

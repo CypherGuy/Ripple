@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-export type ServiceStatus = 'idle' | 'scanning' | 'hit' | 'clean'
+export type ServiceStatus = 'idle' | 'scanning' | 'hit' | 'clean' | 'requires_approval'
 
 export interface ServiceState {
   status: ServiceStatus
@@ -9,6 +9,9 @@ export interface ServiceState {
   fileHit: string | null
   confidence: number | null
   timestamp: string | null
+  riskScore: number | null
+  pattern: string | null
+  evaluatedOn: 'incident_context' | 'technical_merit' | null
 }
 
 export interface ScanSummary {
@@ -62,6 +65,7 @@ export function useRippleSocket() {
             const current = next.get(svc) ?? {
               status: 'idle' as ServiceStatus,
               mrUrl: null, fileHit: null, confidence: null, timestamp: null,
+              riskScore: null, pattern: null, evaluatedOn: null,
             }
 
             if (event.event === 'agent_started') {
@@ -73,6 +77,9 @@ export function useRippleSocket() {
                 fileHit: event.data?.file_path ?? null,
                 confidence: event.data?.confidence ?? null,
                 timestamp: event.timestamp,
+                riskScore: null,
+                pattern: null,
+                evaluatedOn: null,
               })
               if (!settled.current.has(svc)) {
                 settled.current.add(svc)
@@ -84,8 +91,20 @@ export function useRippleSocket() {
                 settled.current.add(svc)
                 setSummary(s => ({ ...s, scanned: s.scanned + 1, clean: s.clean + 1 }))
               }
+            } else if (event.event === 'requires_approval') {
+              next.set(svc, {
+                ...current,
+                status: 'requires_approval',
+                riskScore: event.risk_score ?? null,
+                pattern: event.pattern ?? null,
+                timestamp: event.timestamp ?? null,
+              })
             } else if (event.event === 'mr_opened') {
-              next.set(svc, { ...current, mrUrl: event.mr_url })
+              next.set(svc, {
+                ...current,
+                mrUrl: event.mr_url,
+                evaluatedOn: event.evaluated_on ?? null,
+              })
               if (event.mr_url && !settledMrUrls.current.has(event.mr_url)) {
                 settledMrUrls.current.add(event.mr_url)
                 setSummary(s => ({ ...s, mrsOpened: s.mrsOpened + 1 }))

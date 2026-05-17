@@ -10,9 +10,11 @@ const ALL_SERVICES = [
 
 interface Props {
   services: Map<string, ServiceState>
+  onApprove?: (service: string) => void
+  onSkip?: (service: string) => void
 }
 
-export default function ServiceGrid({ services }: Props) {
+export default function ServiceGrid({ services, onApprove, onSkip }: Props) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
       {ALL_SERVICES.map((name) => (
@@ -25,7 +27,12 @@ export default function ServiceGrid({ services }: Props) {
             fileHit: null,
             confidence: null,
             timestamp: null,
+            riskScore: null,
+            pattern: null,
+            evaluatedOn: null,
           }}
+          onApprove={onApprove}
+          onSkip={onSkip}
         />
       ))}
     </div>

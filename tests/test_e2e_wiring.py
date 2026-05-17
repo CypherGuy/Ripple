@@ -1,3 +1,4 @@
+import os
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 from fastapi.testclient import TestClient
@@ -42,6 +43,7 @@ def client():
 
 
 def test_webhook_returns_202_with_fix_results(client):
+    os.environ.pop("GITLAB_WEBHOOK_SECRET", None)
     with patch("orchestrator.routes.webhook.run_pipeline", new_callable=AsyncMock) as mock_pipeline:
         mock_pipeline.return_value = [MOCK_FIX]
         r = client.post("/webhook", json=WEBHOOK_PAYLOAD)
@@ -53,6 +55,7 @@ def test_webhook_returns_202_with_fix_results(client):
 
 
 def test_webhook_passes_payload_to_pipeline(client):
+    os.environ.pop("GITLAB_WEBHOOK_SECRET", None)
     with patch("orchestrator.routes.webhook.run_pipeline", new_callable=AsyncMock) as mock_pipeline:
         mock_pipeline.return_value = []
         client.post("/webhook", json=WEBHOOK_PAYLOAD)
@@ -63,6 +66,7 @@ def test_webhook_passes_payload_to_pipeline(client):
 
 
 def test_webhook_propagates_trace_id_to_pipeline(client):
+    os.environ.pop("GITLAB_WEBHOOK_SECRET", None)
     with patch("orchestrator.routes.webhook.run_pipeline", new_callable=AsyncMock) as mock_pipeline:
         mock_pipeline.return_value = []
         client.post("/webhook", json=WEBHOOK_PAYLOAD)

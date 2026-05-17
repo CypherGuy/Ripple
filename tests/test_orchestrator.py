@@ -17,6 +17,8 @@ def test_health_returns_ok(client):
 
 
 def test_webhook_accepts_valid_payload(client):
+    import os
+    os.environ.pop("GITLAB_WEBHOOK_SECRET", None)
     payload = {
         "pr_id": "12345",
         "repo": "org/payment-service",
@@ -222,3 +224,181 @@ def test_pipeline_uses_webhook_incident_context_when_intel_returns_none():
     assert fix_ctx.get("incident_id") == "P-26051", \
         f"Expected P-26051 in incident_context passed to Fix Factory, got: {fix_ctx}"
     assert fix_ctx.get("root_cause_summary") == "ssl-monitor hung on slow cert check"
+
+
+# ---------------------------------------------------------------------------
+# Risk threshold / approval flow
+# ---------------------------------------------------------------------------
+
+def test_pipeline_does_not_fix_when_risk_below_threshold():
+    """When risk_score < AUTO_FIX_THRESHOLD, Fix Factory must NOT be called."""
+    from orchestrator.pipeline import run_pipeline
+    from unittest.mock import MagicMock
+    import os
+
+    os.environ["AUTO_FIX_THRESHOLD"] = "7"
+
+    low_risk_intel = {
+        "pattern": "Missing retry logic",
+        "risk_score": 4,
+        "risk_rationale": "low risk",
+        "incident_context": {"incident_id": "P-001"},
+        "previous_scans": [],
+    }
+    fix_called = {"n": 0}
+
+    async def mock_post(url, **kwargs):
+        r = MagicMock()
+        if "analyze" in url:
+            r.json.return_value = low_risk_intel
+        elif "scan" in url:
+            r.json.return_value = {
+                "hits": [{"service": "ssl-monitor", "file_path": "m.py",
+                          "matching_lines": [], "confidence": 0.8}],
+            }
+        elif "fix" in url:
+            fix_called["n"] += 1
+            r.json.return_value = {"mr_url": None}
+        elif "broadcast" in url:
+            r.json.return_value = {"ok": True}
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.post = mock_post
+
+    asyncio.run(run_pipeline({"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
+    assert fix_called["n"] == 0, "Fix Factory should not be called when risk is below threshold"
+
+
+def test_pipeline_broadcasts_requires_approval_when_risk_below_threshold():
+    """When risk_score < threshold, pipeline broadcasts a requires_approval event per service."""
+    from orchestrator.pipeline import run_pipeline
+    from unittest.mock import MagicMock
+    import os
+
+    os.environ["AUTO_FIX_THRESHOLD"] = "7"
+
+    low_risk_intel = {
+        "pattern": "Missing retry logic",
+        "risk_score": 4,
+        "risk_rationale": "low risk",
+        "incident_context": {},
+        "previous_scans": [],
+    }
+    broadcast_calls = []
+
+    async def mock_post(url, **kwargs):
+        r = MagicMock()
+        if "analyze" in url:
+            r.json.return_value = low_risk_intel
+        elif "scan" in url:
+            r.json.return_value = {
+                "hits": [{"service": "ssl-monitor", "file_path": "m.py",
+                          "matching_lines": [], "confidence": 0.8}],
+            }
+        elif "broadcast" in url:
+            broadcast_calls.append(kwargs.get("json", {}))
+            r.json.return_value = {"ok": True}
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.post = mock_post
+
+    asyncio.run(run_pipeline({"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
+    approval_events = [c for c in broadcast_calls if c.get("event") == "requires_approval"]
+    assert len(approval_events) == 1
+    assert approval_events[0]["service"] == "ssl-monitor"
+
+
+def test_pipeline_auto_fixes_when_risk_at_or_above_threshold():
+    """When risk_score >= threshold, Fix Factory is called as before."""
+    from orchestrator.pipeline import run_pipeline
+    from unittest.mock import MagicMock
+    import os
+
+    os.environ["AUTO_FIX_THRESHOLD"] = "7"
+
+    high_risk_intel = {
+        "pattern": "HTTP call without timeout",
+        "risk_score": 9,
+        "risk_rationale": "high risk",
+        "incident_context": {},
+        "previous_scans": [],
+    }
+    fix_called = {"n": 0}
+
+    async def mock_post(url, **kwargs):
+        r = MagicMock()
+        if "analyze" in url:
+            r.json.return_value = high_risk_intel
+        elif "scan" in url:
+            r.json.return_value = {
+                "hits": [{"service": "ssl-monitor", "file_path": "m.py",
+                          "matching_lines": [], "confidence": 0.8}],
+            }
+        elif "fix" in url:
+            fix_called["n"] += 1
+            r.json.return_value = {"mr_url": None}
+        elif "broadcast" in url:
+            r.json.return_value = {"ok": True}
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.post = mock_post
+
+    asyncio.run(run_pipeline({"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
+    assert fix_called["n"] == 1
+
+
+def test_approve_endpoint_triggers_fix_for_pending_service(client):
+    """POST /internal/approve fires fix for a service that awaits approval."""
+    import os
+    import orchestrator.pipeline as pipeline_mod
+
+    os.environ["INTERNAL_SECRET"] = "test-secret"
+    os.environ["AUTO_FIX_THRESHOLD"] = "7"
+
+    fake_hit = {"service": "ssl-monitor", "file_path": "m.py", "matching_lines": [], "confidence": 0.8}
+    fake_intel = {"pattern": "x", "incident_context": {}}
+    pipeline_mod._pending_approvals["ssl-monitor"] = {"hit": fake_hit, "intel": fake_intel, "trace_id": "t"}
+
+    with patch("orchestrator.routes.internal.fix_hit", new_callable=AsyncMock) as mock_fix:
+        mock_fix.return_value = {"mr_url": None, "service": "ssl-monitor"}
+        r = client.post(
+            "/internal/approve",
+            json={"service": "ssl-monitor"},
+            headers={"X-Internal-Secret": "test-secret"},
+        )
+
+    assert r.status_code == 202
+    mock_fix.assert_called_once()
+    assert "ssl-monitor" not in pipeline_mod._pending_approvals
+
+
+def test_approve_endpoint_returns_404_when_service_not_pending(client):
+    """POST /internal/approve returns 404 if the service is not awaiting approval."""
+    import os
+    import orchestrator.pipeline as pipeline_mod
+
+    os.environ["INTERNAL_SECRET"] = "test-secret"
+    pipeline_mod._pending_approvals.pop("nonexistent-svc", None)
+
+    r = client.post(
+        "/internal/approve",
+        json={"service": "nonexistent-svc"},
+        headers={"X-Internal-Secret": "test-secret"},
+    )
+    assert r.status_code == 404
+
+
+def test_approve_endpoint_requires_internal_secret(client):
+    """POST /internal/approve returns 403 without the correct secret."""
+    import os
+    os.environ["INTERNAL_SECRET"] = "test-secret"
+
+    r = client.post(
+        "/internal/approve",
+        json={"service": "ssl-monitor"},
+        headers={"X-Internal-Secret": "wrong"},
+    )
+    assert r.status_code == 403

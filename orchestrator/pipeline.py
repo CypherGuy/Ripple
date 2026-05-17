@@ -8,6 +8,9 @@ SCANNER_URL = os.environ.get("SCANNER_URL", "http://localhost:8002")
 FIX_FACTORY_URL = os.environ.get("FIX_FACTORY_URL", "http://localhost:8003")
 ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://localhost:8000")
 
+# Services awaiting user approval: {service_name: {hit, intel, trace_id}}
+_pending_approvals: dict[str, dict] = {}
+
 
 def get_service_list() -> list[dict]:
     namespace = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/pulsecheck")
@@ -27,6 +30,46 @@ def _safe_json(r: httpx.Response, fallback: dict) -> dict:
         return r.json()
     except Exception:
         return fallback
+
+
+async def fix_hit(
+    hit: dict,
+    intel: dict,
+    trace_id: str,
+    client: httpx.AsyncClient,
+) -> dict | None:
+    headers = {"X-Trace-Id": trace_id}
+    try:
+        r = await client.post(
+            f"{FIX_FACTORY_URL}/fix",
+            json={**hit, "incident_context": intel.get("incident_context", {})},
+            headers=headers,
+            timeout=360,
+        )
+        result = _safe_json(r, {"service": hit.get("service"), "mr_url": None,
+                                "failure_reason": "bad response", "self_correction_passed": False})
+    except Exception as e:
+        return {"service": hit.get("service"), "mr_url": None,
+                "failure_reason": str(e), "self_correction_passed": False}
+
+    if result.get("mr_url"):
+        try:
+            internal_secret = os.environ.get("INTERNAL_SECRET", "")
+            await client.post(
+                f"{ORCHESTRATOR_URL}/internal/broadcast",
+                json={
+                    "event": "mr_opened",
+                    "service": hit.get("service"),
+                    "mr_url": result["mr_url"],
+                    "evaluated_on": result.get("evaluated_on", "technical_merit"),
+                },
+                headers={"X-Internal-Secret": internal_secret},
+                timeout=5,
+            )
+        except Exception:
+            pass
+
+    return result
 
 
 async def run_pipeline(
@@ -101,36 +144,29 @@ async def run_pipeline(
         except Exception as e:
             return []
 
-        # Fix Factory — one per hit, errors caught individually
-        async def fix_one(hit: dict) -> dict | None:
-            try:
-                r = await _client.post(
-                    f"{FIX_FACTORY_URL}/fix",
-                    json={**hit, "incident_context": intel.get("incident_context", {})},
-                    headers=headers,
-                    timeout=360,
-                )
-                result = _safe_json(r, {"service": hit.get("service"), "mr_url": None,
-                                        "failure_reason": "bad response", "self_correction_passed": False})
-            except Exception as e:
-                return {"service": hit.get("service"), "mr_url": None,
-                        "failure_reason": str(e), "self_correction_passed": False}
+        threshold = int(os.environ.get("AUTO_FIX_THRESHOLD", "7"))
+        risk_score = int(intel.get("risk_score", 10))
 
-            if result.get("mr_url"):
+        if risk_score < threshold:
+            # Broadcast requires_approval for each hit and store for later approval
+            internal_secret = os.environ.get("INTERNAL_SECRET", "")
+            for hit in hits:
+                svc = hit.get("service", "")
+                _pending_approvals[svc] = {"hit": hit, "intel": intel, "trace_id": trace_id}
                 try:
-                    internal_secret = os.environ.get("INTERNAL_SECRET", "")
                     await _client.post(
                         f"{ORCHESTRATOR_URL}/internal/broadcast",
-                        json={"event": "mr_opened", "service": hit.get("service"), "mr_url": result["mr_url"]},
+                        json={"event": "requires_approval", "service": svc,
+                              "risk_score": risk_score, "pattern": intel.get("pattern", "")},
                         headers={"X-Internal-Secret": internal_secret},
                         timeout=5,
                     )
                 except Exception:
                     pass
+            return []
 
-            return result
-
-        results = await asyncio.gather(*[fix_one(h) for h in hits])
+        # Fix Factory — one per hit, errors caught individually
+        results = await asyncio.gather(*[fix_hit(h, intel, trace_id, _client) for h in hits])
         return [r for r in results if r is not None]
 
     finally:
