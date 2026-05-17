@@ -144,10 +144,35 @@ def test_hit_found_event_contains_data_field(scanner_client):
 # --- Orchestrator /internal/broadcast ---
 
 def test_internal_broadcast_calls_broadcast_event(orchestrator_client):
-    with patch("orchestrator.routes.internal.broadcast_event") as mock_bcast:
+    with patch.dict(os.environ, {"INTERNAL_SECRET": "test-secret"}), \
+         patch("orchestrator.routes.internal.broadcast_event") as mock_bcast:
+        r = orchestrator_client.post(
+            "/internal/broadcast",
+            json={"event": "agent_started", "service": "auth-service"},
+            headers={"X-Internal-Secret": "test-secret"},
+        )
+    assert r.status_code == 200
+    mock_bcast.assert_called_once()
+
+
+def test_internal_broadcast_rejects_missing_secret(orchestrator_client):
+    with patch.dict(os.environ, {"INTERNAL_SECRET": "test-secret"}), \
+         patch("orchestrator.routes.internal.broadcast_event") as mock_bcast:
         r = orchestrator_client.post(
             "/internal/broadcast",
             json={"event": "agent_started", "service": "auth-service"},
         )
-    assert r.status_code == 200
-    mock_bcast.assert_called_once()
+    assert r.status_code == 403
+    mock_bcast.assert_not_called()
+
+
+def test_internal_broadcast_rejects_wrong_secret(orchestrator_client):
+    with patch.dict(os.environ, {"INTERNAL_SECRET": "test-secret"}), \
+         patch("orchestrator.routes.internal.broadcast_event") as mock_bcast:
+        r = orchestrator_client.post(
+            "/internal/broadcast",
+            json={"event": "agent_started", "service": "auth-service"},
+            headers={"X-Internal-Secret": "wrong-secret"},
+        )
+    assert r.status_code == 403
+    mock_bcast.assert_not_called()
