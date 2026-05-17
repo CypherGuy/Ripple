@@ -47,9 +47,17 @@ SERVICES = {
 def build(svc: str, image: str):
     dockerfile = f"Dockerfile.{svc}" if svc != "dashboard" else "dashboard/Dockerfile"
     context = "." if svc != "dashboard" else "dashboard/"
+    docker_args = ["build", "-f", dockerfile, "-t", image]
+    if svc == "dashboard":
+        admin_secret = os.environ.get("ADMIN_SECRET", "")
+        docker_args += [
+            "--build-arg", f"NEXT_PUBLIC_ORCHESTRATOR_URL={ORCHESTRATOR_URL}",
+            "--build-arg", f"NEXT_PUBLIC_WS_URL=wss://ripple-orchestrator-mctjeick3a-nw.a.run.app/ws",
+            "--build-arg", f"NEXT_PUBLIC_ADMIN_SECRET={admin_secret}",
+        ]
+    docker_args.append(context)
     cb = {
-        "steps": [{"name": "gcr.io/cloud-builders/docker",
-                   "args": ["build", "-f", dockerfile, "-t", image, context]}],
+        "steps": [{"name": "gcr.io/cloud-builders/docker", "args": docker_args}],
         "images": [image],
         "options": {"logging": "CLOUD_LOGGING_ONLY"},
     }
