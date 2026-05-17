@@ -84,6 +84,23 @@ async def run_pipeline(
         _client = httpx.AsyncClient()
 
     try:
+        # Immediately fan out agent_started events so tiles go amber without waiting for Intelligence
+        internal_secret = os.environ.get("INTERNAL_SECRET", "")
+        async def _pre_broadcast():
+            import datetime
+            ts = datetime.datetime.now(datetime.UTC).isoformat()
+            for svc in get_service_list():
+                try:
+                    await _client.post(
+                        f"{ORCHESTRATOR_URL}/internal/broadcast",
+                        json={"event": "agent_started", "service": svc["name"], "timestamp": ts},
+                        headers={"X-Internal-Secret": internal_secret},
+                        timeout=3,
+                    )
+                except Exception:
+                    pass
+        asyncio.create_task(_pre_broadcast())
+
         # Intelligence
         try:
             intel_r = await _client.post(
