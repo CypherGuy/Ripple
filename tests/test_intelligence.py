@@ -314,3 +314,40 @@ def test_call_gemini_adk_prompt_does_not_include_preloaded_incidents():
     assert "incident_id" not in prompts_sent[0], (
         "Prompt contains pre-fetched incident data — the FunctionTool will never be called"
     )
+
+
+def test_adk_instruction_does_not_explicitly_direct_tool_call():
+    """The LlmAgent instruction must not say 'call the tool' or 'use the tool'.
+    It should mention the tool is available and let the model decide.
+    Genuine agentic tool use requires the model to reason about whether to invoke it."""
+    from intelligence.agent import call_gemini_adk
+    from unittest.mock import patch, MagicMock
+
+    captured_instruction = {}
+
+    class CaptureLlmAgent:
+        def __init__(self, *args, **kwargs):
+            captured_instruction["text"] = kwargs.get("instruction", "")
+        def __getattr__(self, name):
+            return MagicMock()
+
+    with patch("intelligence.agent.LlmAgent", CaptureLlmAgent), \
+         patch("intelligence.agent.InMemorySessionService") as MockSvc, \
+         patch("intelligence.agent.Runner") as MockRunner:
+        mock_event = MagicMock()
+        mock_event.is_final_response.return_value = True
+        mock_event.content.parts = [MagicMock(text='{"pattern":"p","risk_score":8,"risk_rationale":"r"}')]
+        MockSvc.return_value._create_session_impl.return_value = MagicMock(id="s1")
+        MockRunner.return_value.run.return_value = [mock_event]
+        try:
+            call_gemini_adk("test diff")
+        except Exception:
+            pass
+
+    instruction = captured_instruction.get("text", "").lower()
+    assert "call the tool" not in instruction, \
+        "Instruction explicitly directs tool call — model has no agency"
+    assert "use the tool" not in instruction, \
+        "Instruction explicitly directs tool use — model has no agency"
+    assert "tool" in instruction or "dynatrace" in instruction, \
+        "Instruction should mention the tool is available without mandating its use"

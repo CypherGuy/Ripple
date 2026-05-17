@@ -78,6 +78,8 @@ def test_broadcast_event_with_no_connections_does_not_raise():
 
 
 def test_demo_trigger_endpoint_exists_and_requires_no_auth(client):
+    import orchestrator.routes.demo as demo_mod
+    demo_mod._last_trigger_time = None  # reset rate limiter
     with patch("orchestrator.routes.demo.run_pipeline", new_callable=AsyncMock) as mock:
         mock.return_value = []
         r = client.post("/demo/trigger")
@@ -85,6 +87,8 @@ def test_demo_trigger_endpoint_exists_and_requires_no_auth(client):
 
 
 def test_demo_trigger_fires_pipeline_with_pulsecheck_payload(client):
+    import orchestrator.routes.demo as demo_mod
+    demo_mod._last_trigger_time = None  # reset rate limiter
     with patch("orchestrator.routes.demo.run_pipeline", new_callable=AsyncMock) as mock:
         mock.return_value = []
         client.post("/demo/trigger")
@@ -92,6 +96,30 @@ def test_demo_trigger_fires_pipeline_with_pulsecheck_payload(client):
     assert payload_arg["incident_context"]["incident_id"] == "P-26051"
     assert "pulsecheck" in payload_arg["repo"]
     assert payload_arg["incident_context"].get("root_cause_summary") != ""
+
+
+def test_demo_trigger_rate_limits_second_request(client):
+    import orchestrator.routes.demo as demo_mod
+    demo_mod._last_trigger_time = None  # reset
+
+    with patch("orchestrator.routes.demo.run_pipeline", new_callable=AsyncMock) as mock:
+        mock.return_value = []
+        r1 = client.post("/demo/trigger")
+        r2 = client.post("/demo/trigger")  # immediate second call
+
+    assert r1.status_code == 202
+    assert r2.status_code == 429
+
+
+def test_demo_trigger_allows_request_after_cooldown(client):
+    import orchestrator.routes.demo as demo_mod
+    import time
+    demo_mod._last_trigger_time = time.time() - 61  # simulate 61s ago
+
+    with patch("orchestrator.routes.demo.run_pipeline", new_callable=AsyncMock) as mock:
+        mock.return_value = []
+        r = client.post("/demo/trigger")
+    assert r.status_code == 202
 
 
 # ---------------------------------------------------------------------------

@@ -1,8 +1,12 @@
+import time
 import uuid
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from orchestrator.pipeline import run_pipeline
 
 router = APIRouter()
+
+_COOLDOWN_SECONDS = 60
+_last_trigger_time: float | None = None
 
 _DEMO_PAYLOAD = {
     "pr_id": "demo-run",
@@ -20,8 +24,17 @@ _DEMO_PAYLOAD = {
 @router.post("/demo/trigger", status_code=202)
 async def trigger_demo():
     """Intentionally public endpoint that fires the PulseCheck demo pipeline.
-    The webhook secret stays server-side — the dashboard button calls this
-    instead of /webhook directly, so no secret is exposed in the client bundle."""
+    Rate-limited to one trigger per 60 seconds to prevent cost abuse.
+    The webhook secret stays server-side — no secret is exposed in the client bundle."""
+    global _last_trigger_time
+    now = time.time()
+    if _last_trigger_time is not None and (now - _last_trigger_time) < _COOLDOWN_SECONDS:
+        remaining = int(_COOLDOWN_SECONDS - (now - _last_trigger_time))
+        raise HTTPException(
+            status_code=429,
+            detail=f"Demo cooldown active. Try again in {remaining}s.",
+        )
+    _last_trigger_time = now
     trace_id = str(uuid.uuid4())
     fix_results = await run_pipeline(_DEMO_PAYLOAD.copy(), trace_id)
     return {"status": "accepted", "pr_id": _DEMO_PAYLOAD["pr_id"], "fix_results": fix_results}

@@ -52,15 +52,14 @@ def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
         name="ripple_pattern_extractor",
         model="gemini-2.5-flash",
         instruction=(
-            "You are a code review expert. You have a tool that queries Dynatrace MCP "
-            "for production incidents matching a code pattern. "
-            "When you receive a PR diff, call the tool to check whether this pattern has "
-            "caused real incidents in production. Use the incident data to ground your "
-            "risk assessment. "
+            "You are a code review expert that extracts dangerous semantic patterns "
+            "from PR diffs, grounded in real production incident history. "
+            "A Dynatrace MCP tool is available if you need to check whether this pattern "
+            "has caused production incidents. "
             "Respond with a JSON object containing exactly: "
             "pattern (string describing the dangerous semantic pattern), "
             "risk_score (integer 1-10, use 9+ if incidents show 47+ min outages), "
-            "risk_rationale (one sentence citing the incident ID if found). "
+            "risk_rationale (one sentence citing the incident ID if one was found). "
             "No markdown, no extra fields."
         ),
         tools=[FunctionTool(_dt_fetch_incidents)],
