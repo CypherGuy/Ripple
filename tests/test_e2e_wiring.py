@@ -263,3 +263,99 @@ def test_pipeline_broadcasts_mr_opened_when_fix_succeeds():
     assert len(mr_events) == 1
     assert mr_events[0]["service"] == "auth-service"
     assert "merge_requests" in mr_events[0]["mr_url"]
+
+
+# ---------------------------------------------------------------------------
+# Dynamic service list from GitLab group API
+# ---------------------------------------------------------------------------
+
+def test_fetch_services_from_gitlab_returns_list():
+    """fetch_services_from_gitlab returns a list of service dicts with name/repo/gitlab_namespace."""
+    from orchestrator.pipeline import fetch_services_from_gitlab
+    import asyncio
+
+    fake_projects = [
+        {"name": "ssl-monitor", "path": "ssl-monitor", "namespace": {"full_path": "mygroup/myproject"}},
+        {"name": "api-monitor", "path": "api-monitor", "namespace": {"full_path": "mygroup/myproject"}},
+    ]
+
+    async def mock_get(url, **kwargs):
+        r = MagicMock()
+        r.status_code = 200
+        r.json.return_value = fake_projects
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.get = mock_get
+
+    result = asyncio.run(fetch_services_from_gitlab("mygroup/myproject", "fake-token", mock_client))
+    assert len(result) == 2
+    assert result[0]["name"] == "ssl-monitor"
+    assert result[0]["gitlab_namespace"] == "mygroup/myproject/ssl-monitor"
+    assert result[1]["name"] == "api-monitor"
+
+
+def test_fetch_services_from_gitlab_falls_back_on_error():
+    """When GitLab API fails, fetch_services_from_gitlab falls back to get_service_list()."""
+    from orchestrator.pipeline import fetch_services_from_gitlab, get_service_list
+    import asyncio
+
+    async def mock_get(url, **kwargs):
+        raise httpx.RequestError("connection refused")
+
+    mock_client = AsyncMock()
+    mock_client.get = mock_get
+
+    result = asyncio.run(fetch_services_from_gitlab("mygroup/myproject", "fake-token", mock_client))
+    assert result == get_service_list()
+
+
+def test_fetch_services_from_gitlab_falls_back_on_non_200():
+    """When GitLab returns non-200, fall back to get_service_list()."""
+    from orchestrator.pipeline import fetch_services_from_gitlab, get_service_list
+    import asyncio
+
+    async def mock_get(url, **kwargs):
+        r = MagicMock()
+        r.status_code = 404
+        r.json.return_value = {"message": "404 Group Not Found"}
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.get = mock_get
+
+    result = asyncio.run(fetch_services_from_gitlab("bad/namespace", "fake-token", mock_client))
+    assert result == get_service_list()
+
+
+def test_pipeline_uses_dynamic_service_list():
+    """run_pipeline calls fetch_services_from_gitlab to build the service list."""
+    from orchestrator.pipeline import run_pipeline
+    import asyncio
+
+    dynamic_services = [
+        {"name": "my-svc", "repo": "org/proj/my-svc", "gitlab_namespace": "org/proj/my-svc"},
+    ]
+    scan_payloads = []
+
+    async def mock_post(url, **kwargs):
+        r = MagicMock()
+        if "analyze" in url:
+            r.json.return_value = {**MOCK_INTEL, "incident_context": {}}
+        elif "scan" in url:
+            scan_payloads.append(kwargs.get("json", {}))
+            r.json.return_value = {"hits": []}
+        elif "broadcast" in url:
+            r.json.return_value = {"ok": True}
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.post = mock_post
+
+    with patch("orchestrator.pipeline.fetch_services_from_gitlab", new_callable=AsyncMock) as mock_fetch:
+        mock_fetch.return_value = dynamic_services
+        asyncio.run(run_pipeline(WEBHOOK_PAYLOAD, "trace-x", _client=mock_client))
+
+    mock_fetch.assert_called_once()
+    assert len(scan_payloads) == 1
+    assert scan_payloads[0]["services"] == dynamic_services

@@ -25,6 +25,35 @@ def get_service_list() -> list[dict]:
     ]
 
 
+async def fetch_services_from_gitlab(
+    namespace: str,
+    token: str,
+    client: httpx.AsyncClient,
+) -> list[dict]:
+    """Discover services by listing repos in a GitLab group. Falls back to get_service_list()."""
+    encoded = namespace.replace("/", "%2F")
+    try:
+        r = await client.get(
+            f"https://gitlab.com/api/v4/groups/{encoded}/projects",
+            headers={"PRIVATE-TOKEN": token},
+            params={"per_page": 100, "archived": "false"},
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return get_service_list()
+        projects = r.json()
+        return [
+            {
+                "name": p["path"],
+                "repo": f"{namespace}/{p['path']}",
+                "gitlab_namespace": f"{namespace}/{p['path']}",
+            }
+            for p in projects
+        ]
+    except Exception:
+        return get_service_list()
+
+
 def _safe_json(r: httpx.Response, fallback: dict) -> dict:
     try:
         return r.json()
@@ -84,12 +113,17 @@ async def run_pipeline(
         _client = httpx.AsyncClient()
 
     try:
+        # Discover services dynamically from GitLab group API
+        namespace = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/pulsecheck")
+        gitlab_token = os.environ.get("GITLAB_TOKEN", "")
+        services = await fetch_services_from_gitlab(namespace, gitlab_token, _client)
+
         # Immediately fan out agent_started events so tiles go amber without waiting for Intelligence
         internal_secret = os.environ.get("INTERNAL_SECRET", "")
         async def _pre_broadcast():
             import datetime
             ts = datetime.datetime.now(datetime.UTC).isoformat()
-            for svc in get_service_list():
+            for svc in services:
                 try:
                     await _client.post(
                         f"{ORCHESTRATOR_URL}/internal/broadcast",
@@ -144,7 +178,7 @@ async def run_pipeline(
                 json={
                     "pattern": intel["pattern"],
                     "incident_context": intel.get("incident_context", {}),
-                    "services": get_service_list(),
+                    "services": services,
                     "callback_url": f"{ORCHESTRATOR_URL}/internal/broadcast",
                 },
                 headers=headers,
