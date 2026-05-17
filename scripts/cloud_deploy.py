@@ -57,8 +57,10 @@ def build(svc: str, image: str):
         ]
     docker_args.append(context)
     cb = {
-        "steps": [{"name": "gcr.io/cloud-builders/docker", "args": docker_args}],
-        "images": [image],
+        "steps": [
+            {"name": "gcr.io/cloud-builders/docker", "args": docker_args},
+            {"name": "gcr.io/cloud-builders/docker", "args": ["push", image]},
+        ],
         "options": {"logging": "CLOUD_LOGGING_ONLY"},
     }
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
