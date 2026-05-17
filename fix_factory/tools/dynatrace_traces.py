@@ -1,9 +1,17 @@
+import re
 import httpx
 
 _MCP_URL = "https://{env}/platform-reserved/mcp-gateway/v0.1/servers/dynatrace-mcp/mcp"
+_INCIDENT_ID_RE = re.compile(r"^[A-Z]+-\d+$")
+
+
+def validate_incident_id(incident_id: str) -> None:
+    if not _INCIDENT_ID_RE.match(incident_id):
+        raise ValueError(f"Invalid incident_id: {incident_id!r}")
 
 
 def get_incident_traces(env: str, token: str, incident_id: str) -> list[dict]:
+    validate_incident_id(incident_id)
     dql = f'fetch dt.davis.problems | filter display_id == "{incident_id}" | limit 1'
     r = httpx.post(
         _MCP_URL.format(env=env),
