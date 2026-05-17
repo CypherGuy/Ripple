@@ -1,6 +1,6 @@
 import os
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from intelligence.tools.dynatrace import fetch_incident_history
 from intelligence.tools.mongodb import find_similar_wins, find_similar_scars
@@ -13,7 +13,7 @@ router = APIRouter()
 class AnalyzePayload(BaseModel):
     pr_id: str
     repo: str | None = None
-    diff: str
+    diff: str = Field(max_length=65536)
 
 
 @router.post("/analyze")

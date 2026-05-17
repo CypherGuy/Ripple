@@ -71,6 +71,24 @@ def test_analyze_rejects_missing_diff(client):
     assert r.status_code == 422
 
 
+def test_analyze_rejects_diff_over_65536_chars(client):
+    huge_diff = "a" * 65537
+    r = client.post("/analyze", json={"pr_id": "1", "repo": "org/svc", "diff": huge_diff})
+    assert r.status_code == 422
+
+
+def test_analyze_accepts_diff_at_65536_chars(client):
+    with patch("intelligence.routes.analyze.fetch_incident_history", return_value=DT4821_INCIDENTS), \
+         patch("intelligence.routes.analyze.extract_pattern", return_value={
+             "pattern": "x", "risk_score": 1, "risk_rationale": "y",
+             "incident_context": DT4821_INCIDENTS[0], "previous_scans": [],
+         }), \
+         patch("intelligence.routes.analyze.find_similar_wins", return_value=[]), \
+         patch("intelligence.routes.analyze.find_similar_scars", return_value=[]):
+        r = client.post("/analyze", json={"pr_id": "1", "repo": "org/svc", "diff": "a" * 65536})
+    assert r.status_code == 200
+
+
 def test_fetch_incident_history_raises_on_bad_token():
     from intelligence.tools.dynatrace import fetch_incident_history
     with pytest.raises(Exception):
