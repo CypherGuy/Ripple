@@ -359,3 +359,78 @@ def test_pipeline_uses_dynamic_service_list():
     mock_fetch.assert_called_once()
     assert len(scan_payloads) == 1
     assert scan_payloads[0]["services"] == dynamic_services
+
+
+# ---------------------------------------------------------------------------
+# Item 10 — Exception leaking: pipeline must not expose internal URLs
+# ---------------------------------------------------------------------------
+
+def test_pipeline_does_not_leak_internal_url_on_intelligence_failure(client):
+    """502 response must not contain internal Cloud Run URLs or exception details."""
+    os.environ.pop("GITLAB_WEBHOOK_SECRET", None)
+
+    async def mock_post(url, **kwargs):
+        if "analyze" in url:
+            raise httpx.ConnectError("failed to connect to https://ripple-intelligence-mctjeick3a-nw.a.run.app")
+        r = MagicMock()
+        return r
+
+    with patch("orchestrator.pipeline.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.post = mock_post
+        mock_client.aclose = AsyncMock()
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_cls.return_value = mock_client
+
+        with patch("orchestrator.routes.webhook.run_pipeline", side_effect=Exception("https://ripple-intelligence-mctjeick3a-nw.a.run.app leaked")):
+            pass  # just checking pipeline itself
+
+    # Test directly via pipeline
+    from orchestrator.pipeline import run_pipeline
+    import asyncio
+
+    async def failing_post(url, **kwargs):
+        raise httpx.ConnectError("https://ripple-intelligence-mctjeick3a-nw.a.run.app leaked")
+
+    mock_client2 = AsyncMock()
+    mock_client2.post = failing_post
+
+    from fastapi import HTTPException
+    with pytest.raises(HTTPException) as exc_info:
+        asyncio.run(run_pipeline({"pr_id": "t", "diff": "x"}, "trace-t", _client=mock_client2))
+
+    assert "ripple-intelligence" not in exc_info.value.detail
+    assert "run.app" not in exc_info.value.detail
+    assert exc_info.value.status_code == 502
+
+
+# ---------------------------------------------------------------------------
+# Item 11 — WebSocket CORS: reject connections from unknown origins
+# ---------------------------------------------------------------------------
+
+def test_websocket_rejects_unknown_origin(client):
+    """WebSocket connections from origins not in the allowlist must be closed."""
+    import os
+    os.environ["DASHBOARD_URL"] = "https://ripple-dashboard-105645459605.europe-west2.run.app"
+    try:
+        with client.websocket_connect("/ws", headers={"origin": "https://evil.com"}) as ws:
+            # Should have been closed — if we get here the check isn't enforced
+            pytest.fail("Connection from unknown origin should have been rejected")
+    except Exception:
+        pass  # closed as expected
+
+
+def test_websocket_accepts_dashboard_origin(client):
+    """WebSocket connections from the dashboard URL must be accepted."""
+    import os
+    os.environ["DASHBOARD_URL"] = "https://ripple-dashboard-105645459605.europe-west2.run.app"
+    with client.websocket_connect("/ws", headers={"origin": "https://ripple-dashboard-105645459605.europe-west2.run.app"}):
+        pass
+
+
+def test_websocket_accepts_localhost_origin(client):
+    """WebSocket connections from localhost must be accepted for local dev."""
+    import os
+    os.environ.pop("DASHBOARD_URL", None)
+    with client.websocket_connect("/ws", headers={"origin": "http://localhost:3000"}):
+        pass

@@ -1,7 +1,10 @@
 import os
 import asyncio
+import logging
 import httpx
 from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
 
 INTELLIGENCE_URL = os.environ.get("INTELLIGENCE_URL", "http://localhost:8001")
 SCANNER_URL = os.environ.get("SCANNER_URL", "http://localhost:8002")
@@ -150,6 +153,7 @@ async def run_pipeline(
             if not intel.get("incident_context") and payload.get("incident_context"):
                 intel["incident_context"] = payload["incident_context"]
         except Exception as e:
+            logger.exception("Intelligence service error")
             raise HTTPException(status_code=502, detail="upstream service error")
 
         # Normalise Intelligence's incident_context:
