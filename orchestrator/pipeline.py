@@ -21,7 +21,7 @@ async def poll_mr_status(
     service: str,
     pattern: str,
     gitlab_token: str,
-    client: httpx.AsyncClient,
+    client: httpx.AsyncClient | None = None,
     poll_interval: int = 60,
     max_polls: int = 1440,  # 24 hours at 60s intervals
 ) -> None:
@@ -30,38 +30,46 @@ async def poll_mr_status(
     api_url = f"https://gitlab.com/api/v4/projects/{encoded}/merge_requests/{iid}"
     internal_secret = os.environ.get("INTERNAL_SECRET", "")
 
-    for _ in range(max_polls):
-        if poll_interval > 0:
-            await asyncio.sleep(poll_interval)
-        try:
-            r = await client.get(
-                api_url,
-                headers={"PRIVATE-TOKEN": gitlab_token},
-                timeout=10,
-            )
-            if r.status_code != 200:
-                continue
-            state = r.json().get("state", "opened")
-            if state in ("merged", "closed"):
-                record_feedback(
-                    service=service,
-                    mr_url=mr_url,
-                    outcome=state,
-                    pattern=pattern,
-                    reason=f"Auto-detected from GitLab: {state}",
+    # Use injected client (tests) or create a fresh one (production)
+    # A fresh client is needed because the pipeline client closes when run_pipeline finishes
+    close_own = client is None
+    poll_client = client if client is not None else httpx.AsyncClient()
+    try:
+        for _ in range(max_polls):
+            if poll_interval > 0:
+                await asyncio.sleep(poll_interval)
+            try:
+                r = await poll_client.get(
+                    api_url,
+                    headers={"PRIVATE-TOKEN": gitlab_token},
+                    timeout=10,
                 )
-                try:
-                    await client.post(
-                        f"{ORCHESTRATOR_URL}/internal/broadcast",
-                        json={"event": "feedback_recorded", "service": service, "outcome": state},
-                        headers={"X-Internal-Secret": internal_secret},
-                        timeout=5,
+                if r.status_code != 200:
+                    continue
+                state = r.json().get("state", "opened")
+                if state in ("merged", "closed"):
+                    record_feedback(
+                        service=service,
+                        mr_url=mr_url,
+                        outcome=state,
+                        pattern=pattern,
+                        reason=f"Auto-detected from GitLab: {state}",
                     )
-                except Exception:
-                    pass
-                return
-        except Exception:
-            continue
+                    try:
+                        await poll_client.post(
+                            f"{ORCHESTRATOR_URL}/internal/broadcast",
+                            json={"event": "feedback_recorded", "service": service, "outcome": state},
+                            headers={"X-Internal-Secret": internal_secret},
+                            timeout=5,
+                        )
+                    except Exception:
+                        pass
+                    return
+            except Exception:
+                continue
+    finally:
+        if close_own:
+            await poll_client.aclose()
 
 INTELLIGENCE_URL = os.environ.get("INTELLIGENCE_URL", "http://localhost:8001")
 SCANNER_URL = os.environ.get("SCANNER_URL", "http://localhost:8002")
@@ -149,7 +157,6 @@ async def fix_hit(
             service=hit.get("service", ""),
             pattern=pattern,
             gitlab_token=gitlab_token,
-            client=client,
         ))
         try:
             internal_secret = os.environ.get("INTERNAL_SECRET", "")
