@@ -214,7 +214,7 @@ export default function Dashboard() {
         {/* Footer */}
         <footer className="mt-auto pt-4 border-t border-white/5">
           <p className="font-mono text-[9px] text-ripple-subtle text-center tracking-wider">
-            Ripple · Google Cloud Rapid Agent Hackathon · Dynatrace Track
+            Ripple · Incident-grounded code review · ripple.dev
           </p>
         </footer>
       </main>

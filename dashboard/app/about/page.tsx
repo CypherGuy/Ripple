@@ -119,8 +119,8 @@ export default function About() {
         {/* ── Hero ── */}
         <section id="overview" className="flex flex-col gap-8">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] text-ripple-accent border border-ripple-accent/30 rounded px-2 py-0.5 uppercase tracking-widest">Google Cloud Rapid Agent Hackathon</span>
-            <span className="font-mono text-[10px] text-ripple-subtle">Dynatrace Track</span>
+            <span className="font-mono text-[10px] text-ripple-accent border border-ripple-accent/30 rounded px-2 py-0.5 uppercase tracking-widest">Incident-grounded code review</span>
+            <span className="font-mono text-[10px] text-ripple-subtle">Powered by Google ADK · Dynatrace · GitLab</span>
           </div>
 
           <div className="flex flex-col gap-4 max-w-4xl">
@@ -385,7 +385,7 @@ export default function About() {
                   'No self-learning over time yet — addressed by scar/win accumulation',
                   'No PR diagram generation yet — planned, will use real DT traces',
                   'No general code quality review — intentional scope, not a bug',
-                  'No BYOK — locked to ADK/Gemini by hackathon rules',
+                  'GitHub support not yet available — GitLab only today',
                 ].map(w => (
                   <li key={w} className="flex items-start gap-2 text-xs text-ripple-subtle leading-relaxed">
                     <PLAN />
@@ -402,7 +402,7 @@ export default function About() {
       {/* Footer */}
       <footer className="border-t border-white/5 mt-8">
         <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
-          <p className="font-mono text-[10px] text-ripple-subtle">Ripple · Google Cloud Rapid Agent Hackathon · Dynatrace Track</p>
+          <p className="font-mono text-[10px] text-ripple-subtle">Ripple · Incident-grounded code review · ripple.dev</p>
           <Link href="/" className="font-mono text-[10px] text-ripple-accent hover:underline">← Back to Live Dashboard</Link>
         </div>
       </footer>
