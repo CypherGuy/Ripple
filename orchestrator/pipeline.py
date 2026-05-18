@@ -3,8 +3,65 @@ import asyncio
 import logging
 import httpx
 from fastapi import HTTPException
+from fix_factory.tools.mongodb_outcomes import record_feedback
 
 logger = logging.getLogger(__name__)
+
+
+def parse_mr_url(mr_url: str) -> tuple[str, str]:
+    """Return (namespace, iid) from a GitLab MR URL."""
+    parts = mr_url.split("/-/merge_requests/")
+    namespace = parts[0].replace("https://gitlab.com/", "")
+    iid = parts[1].split("/")[0]
+    return namespace, iid
+
+
+async def poll_mr_status(
+    mr_url: str,
+    service: str,
+    pattern: str,
+    gitlab_token: str,
+    client: httpx.AsyncClient,
+    poll_interval: int = 60,
+    max_polls: int = 1440,  # 24 hours at 60s intervals
+) -> None:
+    namespace, iid = parse_mr_url(mr_url)
+    encoded = namespace.replace("/", "%2F")
+    api_url = f"https://gitlab.com/api/v4/projects/{encoded}/merge_requests/{iid}"
+    internal_secret = os.environ.get("INTERNAL_SECRET", "")
+
+    for _ in range(max_polls):
+        if poll_interval > 0:
+            await asyncio.sleep(poll_interval)
+        try:
+            r = await client.get(
+                api_url,
+                headers={"PRIVATE-TOKEN": gitlab_token},
+                timeout=10,
+            )
+            if r.status_code != 200:
+                continue
+            state = r.json().get("state", "opened")
+            if state in ("merged", "closed"):
+                record_feedback(
+                    service=service,
+                    mr_url=mr_url,
+                    outcome=state,
+                    pattern=pattern,
+                    reason=f"Auto-detected from GitLab: {state}",
+                )
+                try:
+                    await client.post(
+                        f"{ORCHESTRATOR_URL}/internal/broadcast",
+                        json={"event": "feedback_recorded", "service": service, "outcome": state},
+                        headers={"X-Internal-Secret": internal_secret},
+                        timeout=5,
+                    )
+                except Exception:
+                    pass
+                return
+        except Exception:
+            continue
 
 INTELLIGENCE_URL = os.environ.get("INTELLIGENCE_URL", "http://localhost:8001")
 SCANNER_URL = os.environ.get("SCANNER_URL", "http://localhost:8002")
@@ -85,6 +142,15 @@ async def fix_hit(
                 "failure_reason": str(e), "self_correction_passed": False}
 
     if result.get("mr_url"):
+        gitlab_token = os.environ.get("GITLAB_TOKEN", "")
+        pattern = intel.get("pattern", "")
+        asyncio.create_task(poll_mr_status(
+            mr_url=result["mr_url"],
+            service=hit.get("service", ""),
+            pattern=pattern,
+            gitlab_token=gitlab_token,
+            client=client,
+        ))
         try:
             internal_secret = os.environ.get("INTERNAL_SECRET", "")
             await client.post(

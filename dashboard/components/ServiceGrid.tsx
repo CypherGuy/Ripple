@@ -12,10 +12,9 @@ interface Props {
   services: Map<string, ServiceState>
   onApprove?: (service: string) => void
   onSkip?: (service: string) => void
-  onFeedback?: (service: string, mrUrl: string, outcome: 'merged' | 'rejected') => void
 }
 
-export default function ServiceGrid({ services, onApprove, onSkip, onFeedback }: Props) {
+export default function ServiceGrid({ services, onApprove, onSkip }: Props) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
       {ALL_SERVICES.map((name) => (
@@ -33,10 +32,10 @@ export default function ServiceGrid({ services, onApprove, onSkip, onFeedback }:
             evaluatedOn: null,
             correctionIterations: null,
             incidentId: null,
+            feedbackOutcome: null,
           }}
           onApprove={onApprove}
           onSkip={onSkip}
-          onFeedback={onFeedback}
         />
       ))}
     </div>

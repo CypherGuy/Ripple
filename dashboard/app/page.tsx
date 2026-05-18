@@ -57,15 +57,6 @@ export default function Dashboard() {
     reset()
   }
 
-  async function submitFeedback(service: string, mrUrl: string, outcome: 'merged' | 'rejected') {
-    const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? ''
-    await fetch(`${ORCHESTRATOR_URL}/admin/feedback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': adminSecret },
-      body: JSON.stringify({ service, mr_url: mrUrl, outcome, reason: '' }),
-    })
-  }
-
   async function closeAllMrs() {
     setClosing(true)
     setCloseResult(null)
@@ -218,7 +209,7 @@ export default function Dashboard() {
         </div>
 
         {/* Service grid */}
-        <ServiceGrid services={services} onApprove={approveService} onSkip={skipService} onFeedback={submitFeedback} />
+        <ServiceGrid services={services} onApprove={approveService} onSkip={skipService} />
 
         {/* Footer */}
         <footer className="mt-auto pt-4 border-t border-white/5">

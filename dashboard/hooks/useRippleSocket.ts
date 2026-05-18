@@ -14,6 +14,7 @@ export interface ServiceState {
   evaluatedOn: 'incident_context' | 'technical_merit' | null
   correctionIterations: number | null
   incidentId: string | null
+  feedbackOutcome: 'merged' | 'closed' | null
 }
 
 export interface ScanSummary {
@@ -71,6 +72,7 @@ export function useRippleSocket() {
               status: 'idle' as ServiceStatus,
               mrUrl: null, fileHit: null, confidence: null, timestamp: null,
               riskScore: null, pattern: null, evaluatedOn: null, correctionIterations: null, incidentId: null,
+              feedbackOutcome: null,
             }
 
             if (event.event === 'agent_started') {
@@ -87,6 +89,7 @@ export function useRippleSocket() {
                 evaluatedOn: null,
                 correctionIterations: null,
                 incidentId: null,
+                feedbackOutcome: null,
               })
               if (!settled.current.has(svc)) {
                 settled.current.add(svc)
@@ -105,6 +108,11 @@ export function useRippleSocket() {
                 riskScore: event.risk_score ?? null,
                 pattern: event.pattern ?? null,
                 timestamp: event.timestamp ?? null,
+              })
+            } else if (event.event === 'feedback_recorded') {
+              next.set(svc, {
+                ...current,
+                feedbackOutcome: event.outcome ?? null,
               })
             } else if (event.event === 'mr_opened') {
               next.set(svc, {

@@ -434,3 +434,132 @@ def test_websocket_accepts_localhost_origin(client):
     os.environ.pop("DASHBOARD_URL", None)
     with client.websocket_connect("/ws", headers={"origin": "http://localhost:3000"}):
         pass
+
+
+# ---------------------------------------------------------------------------
+# GitLab MR status polling — automatic feedback loop
+# ---------------------------------------------------------------------------
+
+def test_parse_mr_url_extracts_namespace_and_iid():
+    """parse_mr_url returns (namespace, iid) from a GitLab MR URL."""
+    from orchestrator.pipeline import parse_mr_url
+    ns, iid = parse_mr_url("https://gitlab.com/cypherguy-group/pulsecheck/ssl-monitor/-/merge_requests/5")
+    assert ns == "cypherguy-group/pulsecheck/ssl-monitor"
+    assert iid == "5"
+
+
+def test_parse_mr_url_handles_different_iids():
+    from orchestrator.pipeline import parse_mr_url
+    ns, iid = parse_mr_url("https://gitlab.com/org/proj/svc/-/merge_requests/123")
+    assert ns == "org/proj/svc"
+    assert iid == "123"
+
+
+def test_poll_mr_status_records_win_when_merged():
+    """When GitLab returns state=merged, poll_mr_status writes a win to MongoDB."""
+    from orchestrator.pipeline import poll_mr_status
+    import asyncio
+
+    calls = {"feedback": None, "broadcast": []}
+
+    async def mock_get(url, **kwargs):
+        r = MagicMock()
+        r.status_code = 200
+        r.json.return_value = {"state": "merged", "iid": 1}
+        return r
+
+    async def mock_post(url, **kwargs):
+        r = MagicMock()
+        if "broadcast" in url:
+            calls["broadcast"].append(kwargs.get("json", {}))
+        r.json.return_value = {"ok": True}
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.get = mock_get
+    mock_client.post = mock_post
+
+    with patch("orchestrator.pipeline.record_feedback") as mock_record:
+        asyncio.run(poll_mr_status(
+            mr_url="https://gitlab.com/org/proj/ssl-monitor/-/merge_requests/1",
+            service="ssl-monitor",
+            pattern="HTTP call without timeout",
+            gitlab_token="fake-token",
+            client=mock_client,
+            poll_interval=0,
+            max_polls=1,
+        ))
+        mock_record.assert_called_once()
+        assert mock_record.call_args[1]["outcome"] == "merged"
+
+    feedback_events = [b for b in calls["broadcast"] if b.get("event") == "feedback_recorded"]
+    assert len(feedback_events) == 1
+    assert feedback_events[0]["outcome"] == "merged"
+    assert feedback_events[0]["service"] == "ssl-monitor"
+
+
+def test_poll_mr_status_records_scar_when_closed():
+    """When GitLab returns state=closed, poll_mr_status writes a scar."""
+    from orchestrator.pipeline import poll_mr_status
+    import asyncio
+
+    async def mock_get(url, **kwargs):
+        r = MagicMock()
+        r.status_code = 200
+        r.json.return_value = {"state": "closed", "iid": 1}
+        return r
+
+    async def mock_post(url, **kwargs):
+        r = MagicMock()
+        r.json.return_value = {"ok": True}
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.get = mock_get
+    mock_client.post = mock_post
+
+    with patch("orchestrator.pipeline.record_feedback") as mock_record:
+        asyncio.run(poll_mr_status(
+            mr_url="https://gitlab.com/org/proj/ssl-monitor/-/merge_requests/1",
+            service="ssl-monitor",
+            pattern="HTTP call without timeout",
+            gitlab_token="fake-token",
+            client=mock_client,
+            poll_interval=0,
+            max_polls=1,
+        ))
+        mock_record.assert_called_once()
+        assert mock_record.call_args[1]["outcome"] == "closed"
+
+
+def test_poll_mr_status_gives_up_after_max_polls():
+    """poll_mr_status stops polling after max_polls without writing feedback."""
+    from orchestrator.pipeline import poll_mr_status
+    import asyncio
+
+    poll_count = {"n": 0}
+
+    async def mock_get(url, **kwargs):
+        poll_count["n"] += 1
+        r = MagicMock()
+        r.status_code = 200
+        r.json.return_value = {"state": "opened"}
+        return r
+
+    mock_client = AsyncMock()
+    mock_client.get = mock_get
+    mock_client.post = AsyncMock()
+
+    with patch("orchestrator.pipeline.record_feedback") as mock_record:
+        asyncio.run(poll_mr_status(
+            mr_url="https://gitlab.com/org/proj/ssl-monitor/-/merge_requests/1",
+            service="ssl-monitor",
+            pattern="x",
+            gitlab_token="fake-token",
+            client=mock_client,
+            poll_interval=0,
+            max_polls=3,
+        ))
+        mock_record.assert_not_called()
+
+    assert poll_count["n"] == 3
