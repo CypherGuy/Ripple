@@ -257,6 +257,18 @@ async def run_pipeline(
         threshold = int(os.environ.get("AUTO_FIX_THRESHOLD", "7"))
         risk_score = int(intel.get("risk_score", 10))
 
+        # Broadcast risk score so the dashboard incident panel can display it
+        try:
+            await _client.post(
+                f"{ORCHESTRATOR_URL}/internal/broadcast",
+                json={"event": "risk_scored", "risk_score": risk_score,
+                      "pattern": intel.get("pattern", "")},
+                headers={"X-Internal-Secret": internal_secret},
+                timeout=5,
+            )
+        except Exception:
+            pass
+
         # Set pipeline state so /internal/scan-event can start fix tasks per-hit
         # as scanning progresses, without waiting for all services to finish.
         # Only set for high-risk path — low-risk uses approval flow instead.

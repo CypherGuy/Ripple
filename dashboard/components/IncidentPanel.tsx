@@ -14,7 +14,13 @@ const DEMO_INCIDENT: Incident = {
   cost: '£23,000',
 }
 
-export default function IncidentPanel({ incident = DEMO_INCIDENT }: { incident?: Incident }) {
+export default function IncidentPanel({
+  incident = DEMO_INCIDENT,
+  riskScore = null,
+}: {
+  incident?: Incident
+  riskScore?: number | null
+}) {
   return (
     <div className="flex items-center gap-3 px-3 py-2 rounded-lg border border-ripple-hit/20 bg-ripple-hit/5">
       <div className="flex items-center gap-1.5 shrink-0">
@@ -35,6 +41,12 @@ export default function IncidentPanel({ incident = DEMO_INCIDENT }: { incident?:
         <span className="font-mono text-[10px] text-ripple-subtle">
           <span className="text-ripple-hit font-semibold">{incident.cost}</span> est. cost
         </span>
+        {riskScore !== null && (
+          <span className="font-mono text-[10px] text-ripple-subtle">
+            risk{' '}
+            <span className="text-ripple-hit font-semibold">{riskScore}/10</span>
+          </span>
+        )}
       </div>
     </div>
   )

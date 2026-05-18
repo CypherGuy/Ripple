@@ -23,6 +23,7 @@ export interface ScanSummary {
   clean: number
   mrsOpened: number
   connected: boolean
+  riskScore: number | null
 }
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL
@@ -33,7 +34,7 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL
 export function useRippleSocket() {
   const [services, setServices] = useState<Map<string, ServiceState>>(new Map())
   const [summary, setSummary] = useState<ScanSummary>({
-    scanned: 0, hits: 0, clean: 0, mrsOpened: 0, connected: false,
+    scanned: 0, hits: 0, clean: 0, mrsOpened: 0, connected: false, riskScore: null,
   })
   const ws = useRef<WebSocket | null>(null)
   const settled = useRef<Set<string>>(new Set())
@@ -101,6 +102,8 @@ export function useRippleSocket() {
                 settled.current.add(svc)
                 setSummary(s => ({ ...s, scanned: s.scanned + 1, clean: s.clean + 1 }))
               }
+            } else if (event.event === 'risk_scored') {
+              setSummary(s => ({ ...s, riskScore: event.risk_score ?? null }))
             } else if (event.event === 'requires_approval') {
               next.set(svc, {
                 ...current,
@@ -146,7 +149,7 @@ export function useRippleSocket() {
     settled.current.clear()
     settledMrUrls.current.clear()
     setServices(new Map())
-    setSummary(s => ({ ...s, scanned: 0, hits: 0, clean: 0, mrsOpened: 0 }))
+    setSummary(s => ({ ...s, scanned: 0, hits: 0, clean: 0, mrsOpened: 0, riskScore: null }))
   }
 
   return { services, summary, reset }
