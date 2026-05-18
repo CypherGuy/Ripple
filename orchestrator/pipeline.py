@@ -79,6 +79,10 @@ ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://localhost:8000")
 # Services awaiting user approval: {service_name: {hit, intel, trace_id}}
 _pending_approvals: dict[str, dict] = {}
 
+# Active pipeline context — set while scanner is running so /internal/scan-event
+# can trigger fix_hit per-hit without waiting for all scans to finish.
+_pipeline_state: dict | None = None
+
 
 def get_service_list() -> list[dict]:
     namespace = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/pulsecheck")
@@ -250,6 +254,22 @@ async def run_pipeline(
         if not intel.get("pattern"):
             raise HTTPException(status_code=502, detail="Intelligence returned no pattern")
 
+        threshold = int(os.environ.get("AUTO_FIX_THRESHOLD", "7"))
+        risk_score = int(intel.get("risk_score", 10))
+
+        # Set pipeline state so /internal/scan-event can start fix tasks per-hit
+        # as scanning progresses, without waiting for all services to finish.
+        # Only set for high-risk path — low-risk uses approval flow instead.
+        global _pipeline_state
+        if risk_score >= threshold:
+            _pipeline_state = {
+                "intel": intel,
+                "trace_id": trace_id,
+                "client": _client,
+                "tasks": {},
+                "hits": {},
+            }
+
         # Scanner
         try:
             scan_r = await _client.post(
@@ -258,7 +278,7 @@ async def run_pipeline(
                     "pattern": intel["pattern"],
                     "incident_context": intel.get("incident_context", {}),
                     "services": services,
-                    "callback_url": f"{ORCHESTRATOR_URL}/internal/broadcast",
+                    "callback_url": f"{ORCHESTRATOR_URL}/internal/scan-event",
                 },
                 headers=headers,
                 timeout=600,
@@ -271,14 +291,12 @@ async def run_pipeline(
                 if svc not in seen or h.get("confidence", 0) > seen[svc].get("confidence", 0):
                     seen[svc] = h
             hits = list(seen.values())
-        except Exception as e:
+        except Exception:
+            _pipeline_state = None
             return []
 
-        threshold = int(os.environ.get("AUTO_FIX_THRESHOLD", "7"))
-        risk_score = int(intel.get("risk_score", 10))
-
         if risk_score < threshold:
-            # Broadcast requires_approval for each hit and store for later approval
+            _pipeline_state = None
             internal_secret = os.environ.get("INTERNAL_SECRET", "")
             for hit in hits:
                 svc = hit.get("service", "")
@@ -295,9 +313,24 @@ async def run_pipeline(
                     pass
             return []
 
-        # Fix Factory — one per hit, errors caught individually
-        results = await asyncio.gather(*[fix_hit(h, intel, trace_id, _client) for h in hits])
-        return [r for r in results if r is not None]
+        # Fallback: start fix tasks for any hits not already started via callback
+        try:
+            for h in hits:
+                svc = h.get("service", "")
+                if svc and svc not in _pipeline_state["hits"]:
+                    _pipeline_state["hits"][svc] = h
+                    _pipeline_state["tasks"][svc] = asyncio.create_task(
+                        fix_hit(h, intel, trace_id, _client)
+                    )
+
+            if _pipeline_state["tasks"]:
+                task_results = await asyncio.gather(
+                    *_pipeline_state["tasks"].values(), return_exceptions=True
+                )
+                return [r for r in task_results if isinstance(r, dict)]
+            return []
+        finally:
+            _pipeline_state = None
 
     finally:
         if close_client:
