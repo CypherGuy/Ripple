@@ -98,3 +98,82 @@ def test_analyze_clamps_risk_score_to_minimum_of_1(client):
         r = client.post("/analyze", json={"pr_id": "1", "repo": "x", "diff": SAMPLE_DIFF})
 
     assert r.json()["risk_score"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# Feedback loop — writing scars and wins from MR outcomes
+# ---------------------------------------------------------------------------
+
+def test_record_win_writes_to_wins_collection():
+    from fix_factory.tools.mongodb_outcomes import record_feedback
+    col = MagicMock()
+    record_feedback(
+        service="ssl-monitor",
+        mr_url="https://gitlab.com/org/ssl-monitor/-/merge_requests/1",
+        outcome="merged",
+        pattern="HTTP call without timeout",
+        reason="Fix merged by reviewer",
+        _wins_col=col,
+        _scars_col=MagicMock(),
+    )
+    col.insert_one.assert_called_once()
+    doc = col.insert_one.call_args[0][0]
+    assert doc["service"] == "ssl-monitor"
+    assert doc["outcome"] == "merged"
+    assert doc["pattern"] == "HTTP call without timeout"
+
+
+def test_record_scar_writes_to_scars_collection():
+    from fix_factory.tools.mongodb_outcomes import record_feedback
+    scars_col = MagicMock()
+    record_feedback(
+        service="ssl-monitor",
+        mr_url="https://gitlab.com/org/ssl-monitor/-/merge_requests/1",
+        outcome="rejected",
+        pattern="HTTP call without timeout",
+        reason="Timeout intentional here",
+        _wins_col=MagicMock(),
+        _scars_col=scars_col,
+    )
+    scars_col.insert_one.assert_called_once()
+    doc = scars_col.insert_one.call_args[0][0]
+    assert doc["service"] == "ssl-monitor"
+    assert doc["outcome"] == "rejected"
+    assert doc["reason"] == "Timeout intentional here"
+
+
+def test_feedback_endpoint_writes_win(monkeypatch):
+    import os
+    os.environ["INTERNAL_SECRET"] = "test-secret"
+    from orchestrator.main import app
+    client = TestClient(app)
+
+    with patch("orchestrator.routes.feedback.record_feedback") as mock_record, \
+         patch("orchestrator.routes.feedback.get_pattern_for_mr", return_value="HTTP call without timeout"):
+        mock_record.return_value = None
+        r = client.post(
+            "/admin/feedback",
+            json={
+                "service": "ssl-monitor",
+                "mr_url": "https://gitlab.com/org/ssl-monitor/-/merge_requests/1",
+                "outcome": "merged",
+                "reason": "Fix accepted",
+            },
+            headers={"X-Admin-Secret": os.environ.get("ADMIN_SECRET", "test-admin")},
+        )
+
+    assert r.status_code == 200
+    assert r.json()["recorded"] is True
+
+
+def test_feedback_endpoint_requires_admin_secret():
+    import os
+    os.environ["ADMIN_SECRET"] = "real-secret"
+    from orchestrator.main import app
+    client = TestClient(app)
+    r = client.post(
+        "/admin/feedback",
+        json={"service": "ssl-monitor", "mr_url": "x", "outcome": "merged", "reason": "x"},
+        headers={"X-Admin-Secret": "wrong"},
+    )
+    assert r.status_code == 403

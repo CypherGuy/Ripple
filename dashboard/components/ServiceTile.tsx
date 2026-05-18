@@ -6,6 +6,7 @@ interface Props {
   state: ServiceState
   onApprove?: (service: string) => void
   onSkip?: (service: string) => void
+  onFeedback?: (service: string, mrUrl: string, outcome: 'merged' | 'rejected') => void
 }
 
 const STATUS_CONFIG = {
@@ -51,7 +52,7 @@ const STATUS_CONFIG = {
   },
 } as const
 
-export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
+export default function ServiceTile({ name, state, onApprove, onSkip, onFeedback }: Props) {
   const cfg = STATUS_CONFIG[state.status]
 
   return (
@@ -113,6 +114,20 @@ export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
               <span className="font-mono text-[8px] text-ripple-subtle/60 uppercase tracking-wider">
                 eval {state.correctionIterations}/3
               </span>
+            )}
+            {state.mrUrl && state.mrUrl.startsWith('https://gitlab.com/') && onFeedback && (
+              <div className="flex items-center gap-1 mt-1">
+                <button
+                  onClick={() => onFeedback(name, state.mrUrl!, 'merged')}
+                  className="font-mono text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-ripple-clean/40 text-ripple-clean/70 hover:bg-ripple-clean/10 hover:border-ripple-clean transition-all cursor-pointer"
+                  title="MR was merged — record as win"
+                >✓ Merged</button>
+                <button
+                  onClick={() => onFeedback(name, state.mrUrl!, 'rejected')}
+                  className="font-mono text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-ripple-hit/30 text-ripple-hit/60 hover:bg-ripple-hit/10 hover:border-ripple-hit transition-all cursor-pointer"
+                  title="MR was closed/rejected — record as scar"
+                >✗ Rejected</button>
+              </div>
             )}
           </div>
         )}
