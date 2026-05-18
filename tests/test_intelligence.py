@@ -351,3 +351,81 @@ def test_adk_instruction_does_not_explicitly_direct_tool_call():
         "Instruction explicitly directs tool use — model has no agency"
     assert "tool" in instruction or "dynatrace" in instruction, \
         "Instruction should mention the tool is available without mandating its use"
+
+
+# ---------------------------------------------------------------------------
+# Continuous severity scaling — _severity_adjustment and _parse_cost
+# ---------------------------------------------------------------------------
+
+def test_severity_adjustment_short_duration_no_floor():
+    from intelligence.agent import _severity_adjustment
+    floor, boost = _severity_adjustment(5, "£500")
+    assert floor == 0
+    assert boost == 0
+
+def test_severity_adjustment_10_to_30_min():
+    from intelligence.agent import _severity_adjustment
+    floor, _ = _severity_adjustment(20, "£0")
+    assert floor == 6
+
+def test_severity_adjustment_30_to_60_min():
+    from intelligence.agent import _severity_adjustment
+    floor, _ = _severity_adjustment(47, "£0")
+    assert floor == 8
+
+def test_severity_adjustment_60_to_120_min():
+    from intelligence.agent import _severity_adjustment
+    floor, _ = _severity_adjustment(90, "£0")
+    assert floor == 9
+
+def test_severity_adjustment_over_120_min():
+    from intelligence.agent import _severity_adjustment
+    floor, _ = _severity_adjustment(150, "£0")
+    assert floor == 10
+
+def test_severity_adjustment_cost_boost_10k_to_50k():
+    from intelligence.agent import _severity_adjustment
+    _, boost = _severity_adjustment(0, "£23,000")
+    assert boost == 2
+
+def test_severity_adjustment_cost_boost_over_50k():
+    from intelligence.agent import _severity_adjustment
+    _, boost = _severity_adjustment(0, "£60,000")
+    assert boost == 3
+
+def test_severity_adjustment_cost_boost_under_1k():
+    from intelligence.agent import _severity_adjustment
+    _, boost = _severity_adjustment(0, "£500")
+    assert boost == 0
+
+def test_severity_adjustment_combined_47min_23k():
+    from intelligence.agent import _severity_adjustment
+    floor, boost = _severity_adjustment(47, "£23,000")
+    assert floor == 8
+    assert boost == 2
+
+def test_parse_cost_handles_pound_with_commas():
+    from intelligence.agent import _parse_cost
+    assert _parse_cost("£23,000") == 23000
+
+def test_parse_cost_handles_dollar():
+    from intelligence.agent import _parse_cost
+    assert _parse_cost("$5000") == 5000
+
+def test_parse_cost_handles_unknown():
+    from intelligence.agent import _parse_cost
+    assert _parse_cost("unknown") == 0
+
+def test_extract_pattern_uses_severity_adjustment():
+    from intelligence.agent import extract_pattern
+    incident = {"duration_minutes": 90, "estimated_cost": "£60,000", "incident_id": "X-1"}
+    result = extract_pattern("diff", [incident], _gemini_fn=lambda p: ("pattern", 5, "rationale"))
+    # floor=9 (60-120min), boost=3 (>=£50k) → max(5+3, 9) = max(8, 9) = 9
+    assert result["risk_score"] >= 9
+
+def test_extract_pattern_p26051_still_scores_high():
+    from intelligence.agent import extract_pattern
+    incident = {"duration_minutes": 47, "estimated_cost": "£23,000", "incident_id": "P-26051"}
+    result = extract_pattern("diff", [incident], _gemini_fn=lambda p: ("pattern", 7, "rationale"))
+    # floor=8, boost=2 → max(7+2, 8) = max(9, 8) = 9
+    assert result["risk_score"] == 9
