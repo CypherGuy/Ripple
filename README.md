@@ -15,7 +15,7 @@ A developer (or an AI coding agent) adds an HTTP call without a timeout. It pass
 
 The same pattern existed in eleven other services, introduced by three different developers over eighteen months. Nobody knew. Nobody connected the PR that opened it to the incident that proved it was dangerous.
 
-Every other code review tool asks *"did this pattern appear before?"* Ripple asks *"did this pattern cause an outage, and where else is it hiding right now?"*
+Every other code review tool asks _"did this pattern appear before?"_ Ripple asks _"did this pattern cause an outage, and where else is it hiding right now?"_
 
 ---
 
@@ -72,11 +72,11 @@ The pipeline overlaps scanning and fixing: the moment a service reports a hit, F
 
 ## Three MCPs
 
-| MCP | Track | Role |
-|-----|-------|------|
-| **Dynatrace** | Primary | Intelligence queries `query-problems` for incident history matching the PR diff. The ADK agent decides whether the diff warrants a query; it is not called automatically. The evaluator re-fetches real traces via `execute-dql` to validate each fix against the actual failure before opening an MR. Ripple's own Gemini calls are traced in Dynatrace via OpenTelemetry. |
-| **GitLab** | Secondary | Scanner fetches source files per service. Fix Factory pulls closed MR history for fix precedents. MRs are opened with incident context embedded in the description. |
-| **MongoDB Atlas** | Tertiary | Institutional memory: every merged fix is a Win (confidence +1), every rejected fix is a Scar (risk −2). Subsequent scans query this history. Ripple gets smarter with every developer interaction. |
+| MCP               | Track     | Role                                                                                                                                                                                                                                                                                                                                                                        |
+| ----------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dynatrace**     | Primary   | Intelligence queries `query-problems` for incident history matching the PR diff. The ADK agent decides whether the diff warrants a query; it is not called automatically. The evaluator re-fetches real traces via `execute-dql` to validate each fix against the actual failure before opening an MR. Ripple's own Gemini calls are traced in Dynatrace via OpenTelemetry. |
+| **GitLab**        | Secondary | Scanner fetches source files per service. Fix Factory pulls closed MR history for fix precedents. MRs are opened with incident context embedded in the description.                                                                                                                                                                                                         |
+| **MongoDB Atlas** | Tertiary  | Institutional memory: every merged fix is a Win (confidence +1), every rejected fix is a Scar (risk −2). Subsequent scans query this history. Ripple gets smarter with every developer interaction.                                                                                                                                                                         |
 
 ---
 
@@ -84,10 +84,10 @@ The pipeline overlaps scanning and fixing: the moment a service reports a hit, F
 
 All four services use Google ADK `LlmAgent` with `FunctionTool`:
 
-- **Intelligence** — `LlmAgent` with Dynatrace `FunctionTool`. The agent receives the raw PR diff and decides whether to query Dynatrace for incident history. If the diff looks benign, it skips the call. If it looks dangerous, it fetches real incident traces and grounds its risk score in them.
-- **Scanner** — `LlmAgent` with GitLab `FunctionTool`. The agent decides which files to fetch from each service's repository before searching for the pattern.
-- **Fix Factory (fix agent)** — `LlmAgent` with GitLab history `FunctionTool`. The agent can pull how this team has fixed similar patterns before, generating a contextual patch rather than a generic one.
-- **Fix Factory (eval agent)** — `LlmAgent` with Dynatrace trace `FunctionTool`. The agent validates the proposed fix against the actual incident traces, not just in theory, but against the specific failure that proved the pattern was dangerous.
+- **Intelligence** - `LlmAgent` with Dynatrace `FunctionTool`. The agent receives the raw PR diff and decides whether to query Dynatrace for incident history. If the diff looks benign, it skips the call. If it looks dangerous, it fetches real incident traces and grounds its risk score in them.
+- **Scanner** - `LlmAgent` with GitLab `FunctionTool`. The agent decides which files to fetch from each service's repository before searching for the pattern.
+- **Fix Factory (fix agent)** - `LlmAgent` with GitLab history `FunctionTool`. The agent can pull how this team has fixed similar patterns before, generating a contextual patch rather than a generic one.
+- **Fix Factory (eval agent)** - `LlmAgent` with Dynatrace trace `FunctionTool`. The agent validates the proposed fix against the actual incident traces, not just in theory, but against the specific failure that proved the pattern was dangerous.
 
 ---
 
@@ -97,9 +97,9 @@ Dynatrace observes Ripple the same way Ripple observes your code.
 
 Every pipeline run ships spans to `jfr54188.live.dynatrace.com` via the OTLP exporter:
 
-- `ripple.intelligence.adk_run` — latency, whether Dynatrace was queried, response length
-- `ripple.scanner.scan_service` — per service: files fetched, hits found, confidence
-- `ripple.fix_factory.run_with_correction` — per service: iterations taken, evaluation pass/fail, `evaluated_on: incident_context`
+- `ripple.intelligence.adk_run` - latency, whether Dynatrace was queried, response length
+- `ripple.scanner.scan_service` - per service: files fetched, hits found, confidence
+- `ripple.fix_factory.run_with_correction` - per service: iterations taken, evaluation pass/fail, `evaluated_on: incident_context`
 
 The `evaluated_on: incident_context` attribute on the Fix Factory span proves the fix was validated against real Dynatrace incident data, not just technical correctness.
 
@@ -127,10 +127,11 @@ Real-time developer tool, not an ops screen.
 Five tile states: **Idle, Scanning, Hit, Clean, Approval**. The moment Intelligence returns a risk score, it appears in the incident panel. The moment a service reports a hit, the scanner and fix factory run in parallel for that service. MRs appear tile-by-tile as they open in GitLab.
 
 Each hit tile shows:
-- **Incident: P-26051** — the specific incident that grounded this fix
-- **eval 1/3** — which iteration the self-correction loop passed on
-- **DT trace ↗** — direct link to the Dynatrace span for this fix
-- **View MR ↗** — the actual GitLab MR
+
+- **Incident: P-26051** - the specific incident that grounded this fix
+- **eval 1/3** - which iteration the self-correction loop passed on
+- **DT trace ↗** - direct link to the Dynatrace span for this fix
+- **View MR ↗** - the actual GitLab MR
 
 The Pipeline Trace section below the grid shows a live Gantt: Intelligence duration, scan phase per service, fix generation per service. The elapsed timer counts up during the run and freezes on completion.
 
@@ -138,13 +139,13 @@ The Pipeline Trace section below the grid shows a live Gantt: Intelligence durat
 
 ## Deployed Services
 
-| Service | URL |
-|---------|-----|
-| Dashboard | https://ripple-dashboard-105645459605.europe-west2.run.app |
-| Orchestrator | https://ripple-orchestrator-mctjeick3a-nw.a.run.app |
-| Intelligence | https://ripple-intelligence-mctjeick3a-nw.a.run.app |
-| Scanner | https://ripple-scanner-mctjeick3a-nw.a.run.app |
-| Fix Factory | https://ripple-fix-factory-mctjeick3a-nw.a.run.app |
+| Service      | URL                                                        |
+| ------------ | ---------------------------------------------------------- |
+| Dashboard    | https://ripple-dashboard-105645459605.europe-west2.run.app |
+| Orchestrator | https://ripple-orchestrator-mctjeick3a-nw.a.run.app        |
+| Intelligence | https://ripple-intelligence-mctjeick3a-nw.a.run.app        |
+| Scanner      | https://ripple-scanner-mctjeick3a-nw.a.run.app             |
+| Fix Factory  | https://ripple-fix-factory-mctjeick3a-nw.a.run.app         |
 
 All services run on Cloud Run `europe-west2`. Secrets are managed via GCP Secret Manager. `--min-instances=1` is set on all backend services to eliminate cold-start latency.
 
@@ -236,21 +237,21 @@ Builds via Cloud Build, deploys to `europe-west2`. All secrets are pulled from S
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Agent framework | Google ADK (`LlmAgent`, `FunctionTool`, `Runner`) |
-| Model | Gemini 2.5 Flash (via ADK) |
-| Observability | OpenTelemetry to Dynatrace (`jfr54188.live.dynatrace.com`) |
-| Primary MCP | Dynatrace (`query-problems`, `execute-dql`) |
-| Secondary | GitLab REST API |
-| Tertiary | MongoDB Atlas (institutional memory) |
-| Backend | FastAPI · Python 3.13 · asyncio · httpx |
-| Frontend | Next.js 14 · Tailwind CSS · WebSocket |
-| Infrastructure | Google Cloud Run · Cloud Build · Secret Manager |
-| Tests | pytest · 164 tests · TDD throughout |
+| Layer           | Technology                                                 |
+| --------------- | ---------------------------------------------------------- |
+| Agent framework | Google ADK (`LlmAgent`, `FunctionTool`, `Runner`)          |
+| Model           | Gemini 2.5 Flash (via ADK)                                 |
+| Observability   | OpenTelemetry to Dynatrace (`jfr54188.live.dynatrace.com`) |
+| Primary MCP     | Dynatrace (`query-problems`, `execute-dql`)                |
+| Secondary       | GitLab REST API                                            |
+| Tertiary        | MongoDB Atlas (institutional memory)                       |
+| Backend         | FastAPI · Python 3.13 · asyncio · httpx                    |
+| Frontend        | Next.js 14 · Tailwind CSS · WebSocket                      |
+| Infrastructure  | Google Cloud Run · Cloud Build · Secret Manager            |
+| Tests           | pytest · 164 tests · TDD throughout                        |
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
