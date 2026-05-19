@@ -19,8 +19,9 @@ def setup_tracer(service_name: str) -> trace.Tracer:
 
     if dt_env and dt_token:
         provider = TracerProvider(resource=resource)
+        dt_otlp_host = dt_env.replace(".apps.", ".live.")
         exporter = OTLPSpanExporter(
-            endpoint=f"https://{dt_env}/api/v2/otlp/v1/traces",
+            endpoint=f"https://{dt_otlp_host}/api/v2/otlp/v1/traces",
             headers={"Authorization": f"Api-Token {dt_token}"},
         )
         provider.add_span_processor(BatchSpanProcessor(exporter))
