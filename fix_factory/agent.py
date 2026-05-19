@@ -1,6 +1,13 @@
 import json
 import os
 from google import genai
+from opentelemetry import trace
+
+try:
+    from otel_setup import setup_tracer
+    _tracer = setup_tracer("fix-factory")
+except Exception:
+    _tracer = trace.get_tracer("ripple.fix-factory")
 
 
 def _gemini_client():
@@ -96,37 +103,48 @@ def run_with_correction(
     extra_context = ""
     fix: dict = {"old_line": "", "new_line": "", "patch": "", "fix_explanation": ""}
 
-    for i in range(max_iterations):
-        try:
-            fix = _fix_fn(hit, traces, precedents)
-            if extra_context:
-                fix["fix_explanation"] += f" (retry {i+1}: {extra_context})"
+    with _tracer.start_as_current_span("ripple.fix_factory.run_with_correction") as span:
+        span.set_attribute("service", hit.get("service", ""))
+        span.set_attribute("file_path", hit.get("file_path", ""))
+        span.set_attribute("max_iterations", max_iterations)
 
-            evaluation = _eval_fn(hit, fix["patch"])
+        for i in range(max_iterations):
+            try:
+                fix = _fix_fn(hit, traces, precedents)
+                if extra_context:
+                    fix["fix_explanation"] += f" (retry {i+1}: {extra_context})"
 
-            if evaluation["passed"]:
-                import os
-                gl_token = os.environ.get("GITLAB_TOKEN", "")
-                namespace = hit.get("gitlab_namespace", hit["service"])
-                evaluated_on = evaluation.get("evaluated_on", "incident_context")
-                mr_url = _mr_fn(namespace, gl_token, hit["file_path"], fix["old_line"], fix["new_line"], hit["incident_context"], evaluated_on)
-                outcome = {
-                    "service": hit["service"],
-                    "file_path": hit["file_path"],
-                    "mr_url": mr_url,
-                    "self_correction_passed": True,
-                    "correction_iterations": i + 1,
-                    "failure_reason": None,
-                    "evaluated_on": evaluated_on,
-                }
-                _store_fn(outcome)
-                return {**fix, **outcome}
+                evaluation = _eval_fn(hit, fix["patch"])
 
-            last_rationale = evaluation["rationale"]
-            extra_context = last_rationale
-        except Exception as e:
-            last_rationale = f"Error on iteration {i + 1}: {e}"
-            extra_context = last_rationale
+                if evaluation["passed"]:
+                    import os
+                    gl_token = os.environ.get("GITLAB_TOKEN", "")
+                    namespace = hit.get("gitlab_namespace", hit["service"])
+                    evaluated_on = evaluation.get("evaluated_on", "incident_context")
+                    mr_url = _mr_fn(namespace, gl_token, hit["file_path"], fix["old_line"], fix["new_line"], hit["incident_context"], evaluated_on)
+                    outcome = {
+                        "service": hit["service"],
+                        "file_path": hit["file_path"],
+                        "mr_url": mr_url,
+                        "self_correction_passed": True,
+                        "correction_iterations": i + 1,
+                        "failure_reason": None,
+                        "evaluated_on": evaluated_on,
+                    }
+                    span.set_attribute("self_correction.passed", True)
+                    span.set_attribute("correction.iterations", i + 1)
+                    span.set_attribute("evaluated_on", evaluated_on)
+                    _store_fn(outcome)
+                    return {**fix, **outcome}
+
+                last_rationale = evaluation["rationale"]
+                extra_context = last_rationale
+            except Exception as e:
+                last_rationale = f"Error on iteration {i + 1}: {e}"
+                extra_context = last_rationale
+
+        span.set_attribute("self_correction.passed", False)
+        span.set_attribute("correction.iterations", max_iterations)
 
     outcome = {
         "service": hit["service"],

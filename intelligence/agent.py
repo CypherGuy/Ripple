@@ -8,6 +8,13 @@ from google.adk.tools import FunctionTool
 from google.adk import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types as genai_types
+from opentelemetry import trace
+
+try:
+    from otel_setup import setup_tracer
+    _tracer = setup_tracer("intelligence")
+except Exception:
+    _tracer = trace.get_tracer("ripple.intelligence")
 
 
 def _gemini_client():
@@ -74,22 +81,27 @@ def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
         auto_create_session=True,
     )
 
-    session = session_service._create_session_impl(
-        app_name="ripple-intelligence",
-        user_id="system",
-        session_id=str(uuid.uuid4()),
-    )
-
     message = genai_types.Content(
         role="user",
         parts=[genai_types.Part(text=prompt)],
     )
 
     text = ""
-    for event in runner.run(user_id="system", session_id=session.id, new_message=message):
-        if event.is_final_response() and event.content and event.content.parts:
-            text = event.content.parts[0].text.strip()
-            break
+    dt_queried = False
+
+    with _tracer.start_as_current_span("ripple.intelligence.adk_run") as span:
+        span.set_attribute("model", "gemini-2.5-flash")
+        span.set_attribute("service", "intelligence")
+
+        for event in runner.run(user_id="system", session_id=str(uuid.uuid4()), new_message=message):
+            if hasattr(event, "get_function_calls") and event.get_function_calls():
+                dt_queried = True
+            if event.is_final_response() and event.content and event.content.parts:
+                text = event.content.parts[0].text.strip()
+                break
+
+        span.set_attribute("dynatrace.queried", dt_queried)
+        span.set_attribute("response.length", len(text))
 
     try:
         parsed = json.loads(text)

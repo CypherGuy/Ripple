@@ -1,7 +1,14 @@
 import json
 import os
 from google import genai
+from opentelemetry import trace
 from scanner.tools.gitlab import read_service_files
+
+try:
+    from otel_setup import setup_tracer
+    _tracer = setup_tracer("scanner")
+except Exception:
+    _tracer = trace.get_tracer("ripple.scanner")
 
 
 def _gemini_client():
@@ -40,6 +47,16 @@ def scan_service(
 
     files_text = "\n\n".join(f"=== {path} ===\n{content}" for path, content in files.items())
 
+    with _tracer.start_as_current_span("ripple.scanner.scan_service") as span:
+        span.set_attribute("service.name", service.get("name", ""))
+        span.set_attribute("files.count", len(files))
+        hits = _scan_with_gemini(files_text, pattern, _gemini_fn)
+        span.set_attribute("hits.count", len(hits))
+        span.set_attribute("hit.found", len(hits) > 0)
+    return hits
+
+
+def _scan_with_gemini(files_text: str, pattern: str, _gemini_fn) -> list[dict]:
     prompt = f"""You are a code reviewer scanning for dangerous patterns.
 
 PATTERN TO FIND: {pattern}
