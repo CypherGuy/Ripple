@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import json
@@ -9,6 +10,10 @@ from google.adk import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types as genai_types
 from opentelemetry import trace
+from intelligence.constants import (
+    DURATION_FLOOR_10, DURATION_FLOOR_9, DURATION_FLOOR_8, DURATION_FLOOR_6,
+    COST_BOOST_3, COST_BOOST_2, COST_BOOST_1,
+)
 
 try:
     from otel_setup import setup_tracer
@@ -16,10 +21,13 @@ try:
 except Exception:
     _tracer = trace.get_tracer("ripple.intelligence")
 
+logger = logging.getLogger(__name__)
+
 
 def _gemini_client():
-    if os.environ.get("GEMINI_API_KEY"):
-        return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if api_key:
+        return genai.Client(api_key=api_key)
     return genai.Client(vertexai=True, project=os.environ["GOOGLE_CLOUD_PROJECT"], location="us-central1")
 
 
@@ -33,7 +41,8 @@ def call_gemini(prompt: str) -> tuple[str, int, str]:
     try:
         parsed = json.loads(text)
         return parsed["pattern"], int(parsed["risk_score"]), parsed["risk_rationale"]
-    except Exception:
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        logger.warning("call_gemini parse failed: %s | raw: %.200s", e, text)
         return text, 5, "Could not parse structured response."
 
 
@@ -106,7 +115,8 @@ def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
     try:
         parsed = json.loads(text)
         return parsed["pattern"], int(parsed["risk_score"]), parsed["risk_rationale"]
-    except Exception:
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        logger.warning("call_gemini_adk parse failed: %s | raw: %.200s", e, text)
         return text, 5, "Could not parse structured response."
 
 
@@ -122,23 +132,23 @@ def _severity_adjustment(duration: int, cost_str: str) -> tuple[int, int]:
     floor — minimum risk_score this incident warrants regardless of Gemini's score
     boost — additive points on top of Gemini's score
     """
-    if duration >= 120:
+    if duration >= DURATION_FLOOR_10:
         floor = 10
-    elif duration >= 60:
+    elif duration >= DURATION_FLOOR_9:
         floor = 9
-    elif duration >= 30:
+    elif duration >= DURATION_FLOOR_8:
         floor = 8
-    elif duration >= 10:
+    elif duration >= DURATION_FLOOR_6:
         floor = 6
     else:
         floor = 0
 
     cost = _parse_cost(cost_str)
-    if cost >= 50_000:
+    if cost >= COST_BOOST_3:
         boost = 3
-    elif cost >= 10_000:
+    elif cost >= COST_BOOST_2:
         boost = 2
-    elif cost >= 1_000:
+    elif cost >= COST_BOOST_1:
         boost = 1
     else:
         boost = 0

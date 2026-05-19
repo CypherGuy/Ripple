@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import uuid
 from google import genai
@@ -9,9 +10,13 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types as genai_types
 
 
+logger = logging.getLogger(__name__)
+
+
 def _gemini_client():
-    if os.environ.get("GEMINI_API_KEY"):
-        return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if api_key:
+        return genai.Client(api_key=api_key)
     return genai.Client(vertexai=True, project=os.environ["GOOGLE_CLOUD_PROJECT"], location="us-central1")
 
 
@@ -97,7 +102,8 @@ def call_evaluator_adk(hit: dict, patch: str) -> dict:
         result = json.loads(text)
         evaluated_on = "incident_context" if root_cause and not _root_cause_missing(ctx) else "technical_merit"
         return {"passed": bool(result.get("passed")), "rationale": result.get("rationale", ""), "evaluated_on": evaluated_on}
-    except Exception:
+    except (json.JSONDecodeError, KeyError) as e:
+        logger.warning("call_evaluator_adk parse failed: %s | raw: %.200s", e, text)
         return {"passed": False, "rationale": "Could not parse evaluator response.", "evaluated_on": "technical_merit"}
 
 
@@ -167,5 +173,6 @@ Respond with only the JSON object."""
             "rationale": result.get("rationale", ""),
             "evaluated_on": evaluated_on,
         }
-    except Exception:
+    except (json.JSONDecodeError, KeyError) as e:
+        logger.warning("evaluate_fix parse failed: %s | raw: %.200s", e, raw)
         return {"passed": False, "rationale": "Could not parse evaluator response.", "evaluated_on": evaluated_on}

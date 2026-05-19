@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import uuid
 from google import genai
@@ -16,10 +17,13 @@ try:
 except Exception:
     _tracer = trace.get_tracer("ripple.scanner")
 
+logger = logging.getLogger(__name__)
+
 
 def _gemini_client():
-    if os.environ.get("GEMINI_API_KEY"):
-        return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if api_key:
+        return genai.Client(api_key=api_key)
     return genai.Client(vertexai=True, project=os.environ["GOOGLE_CLOUD_PROJECT"], location="us-central1")
 
 
