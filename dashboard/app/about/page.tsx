@@ -39,12 +39,12 @@ const services = [
 const mcps = [
   { name: 'Dynatrace MCP', role: 'Primary', desc: 'incident history, real traces, service maps, root cause' },
   { name: 'GitLab REST API', role: 'Secondary', desc: 'codebase read/write, MR creation, fix precedent' },
-  { name: 'MongoDB Atlas', role: 'Tertiary', desc: 'institutional memory — scars, wins, patterns from past scans' },
+  { name: 'MongoDB Atlas', role: 'Tertiary', desc: 'institutional memory: scars, wins, patterns from past scans' },
 ]
 
 const differentiators = [
   { stat: '12', label: 'services scanned in parallel' },
-  { stat: '1', label: 'PR triggers the entire sweep' },
+  { stat: '47 min', label: 'outage duration, grounded in real traces' },
   { stat: 'P-26051', label: 'real Dynatrace problem ID' },
   { stat: '£23k', label: 'quantified outage cost' },
 ]
@@ -129,12 +129,12 @@ export default function About() {
               <span className="text-ripple-subtle">"did this pattern appear before?"</span>
             </h1>
             <p className="text-3xl font-bold tracking-tight text-ripple-accent">
-              Ripple asks "did this pattern cause an outage —<br />and where else is it hiding right now?"
+              Ripple asks "did this pattern cause an outage,<br />and where else is it hiding right now?"
             </p>
           </div>
 
           <p className="text-base text-ripple-subtle leading-relaxed max-w-3xl">
-            Ripple detects dangerous code patterns in incoming GitLab PRs by checking whether that pattern has ever caused a real production incident in Dynatrace. When it finds a match, it fans out across every service simultaneously and opens targeted fix MRs — each grounded in the exact incident that proved why the pattern is dangerous.
+            Ripple detects dangerous code patterns in incoming GitLab PRs by checking whether that pattern has ever caused a real production incident in Dynatrace. When it finds a match, it fans out across every service simultaneously and opens targeted fix MRs, each grounded in the exact incident that proved why the pattern is dangerous.
           </p>
 
           {/* Key stats */}
@@ -153,7 +153,7 @@ export default function About() {
           <div className="flex flex-col gap-2">
             <h2 className="text-2xl font-bold text-ripple-text">Architecture</h2>
             <p className="text-sm text-ripple-subtle max-w-2xl">
-              Four FastAPI microservices communicating via A2A protocol, orchestrated by Google ADK with Gemini 2.5 Flash. Deployed on Cloud Run.
+              Four FastAPI microservices communicating via A2A protocol, orchestrated by Google ADK with Gemini 2.5 Flash. Deployed on Cloud Run (London). Scanning and fixing overlap: the moment a service reports a hit, Fix Factory starts on it while remaining services are still scanning.
             </p>
           </div>
 
@@ -213,6 +213,66 @@ export default function About() {
               ))}
             </div>
           </div>
+
+          {/* Institutional memory */}
+          <div className="flex flex-col gap-3">
+            <h3 className="font-mono text-[11px] text-ripple-subtle uppercase tracking-widest">Institutional Memory</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-lg border border-ripple-clean/20 bg-ripple-clean/5 p-4 flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-bold text-ripple-clean">Win</span>
+                  <span className="font-mono text-[9px] text-ripple-subtle border border-white/10 rounded px-1.5 py-0.5">merged fix · no incidents since</span>
+                </div>
+                <p className="text-xs text-ripple-subtle leading-relaxed">Confidence boost: <span className="text-ripple-clean font-mono">+1</span>. Subsequent scans on this codebase score similar patterns higher.</p>
+              </div>
+              <div className="rounded-lg border border-ripple-hit/20 bg-ripple-hit/5 p-4 flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-bold text-ripple-hit">Scar</span>
+                  <span className="font-mono text-[9px] text-ripple-subtle border border-white/10 rounded px-1.5 py-0.5">rejected fix · pattern was intentional</span>
+                </div>
+                <p className="text-xs text-ripple-subtle leading-relaxed">Risk adjustment: <span className="text-ripple-hit font-mono">−2</span>. When accumulated scars push a score below the configurable <span className="font-mono text-ripple-subtle">AUTO_FIX_THRESHOLD</span>, Ripple switches from auto-opening MRs to showing <strong className="text-ripple-text">Approve / Skip</strong> buttons on the dashboard tile.</p>
+              </div>
+            </div>
+            <p className="text-xs text-ripple-subtle max-w-2xl leading-relaxed">
+              Every merged fix is a Win; every rejected fix is a Scar. Subsequent scans query this history via vector search. The system compounds; it does not ask the same question twice.
+            </p>
+          </div>
+
+          {/* Observability */}
+          <div className="flex flex-col gap-3">
+            <h3 className="font-mono text-[11px] text-ripple-subtle uppercase tracking-widest">Observability</h3>
+            <div className="rounded-lg border border-white/5 bg-ripple-surface p-5 flex flex-col gap-4">
+              <p className="text-sm text-ripple-text leading-relaxed">Dynatrace observes Ripple the same way Ripple observes your code.</p>
+              <p className="text-xs text-ripple-subtle leading-relaxed max-w-2xl">
+                Every pipeline run ships spans to Dynatrace via OpenTelemetry. The <span className="font-mono">evaluated_on: incident_context</span> attribute on each Fix Factory span proves the fix was validated against real incident data, not just technical correctness.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  { span: 'ripple.intelligence.adk_run', detail: 'latency · whether Dynatrace was queried · response length' },
+                  { span: 'ripple.scanner.scan_service', detail: 'per service: files fetched · hits found · confidence' },
+                  { span: 'ripple.fix_factory.run_with_correction', detail: 'per service: iterations taken · evaluation pass/fail' },
+                ].map(({ span, detail }) => (
+                  <div key={span} className="rounded border border-white/5 bg-white/[0.02] p-3 flex flex-col gap-1">
+                    <span className="font-mono text-[10px] text-ripple-accent break-all">{span}</span>
+                    <span className="font-mono text-[10px] text-ripple-subtle leading-relaxed">{detail}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Demo environment */}
+          <div className="flex flex-col gap-3">
+            <h3 className="font-mono text-[11px] text-ripple-subtle uppercase tracking-widest">Demo Environment</h3>
+            <div className="rounded-lg border border-ripple-accent/20 bg-ripple-accent/5 p-5 flex flex-col gap-3">
+              <p className="text-sm text-ripple-text leading-relaxed">
+                The demo runs against <strong className="text-ripple-text">PulseCheck</strong>, a real 12-service Python monitoring platform on GitLab.
+              </p>
+              <p className="text-xs text-ripple-subtle leading-relaxed max-w-2xl">
+                Incident <span className="font-mono text-ripple-accent">P-26051</span>: <em>ssl-monitor</em> hung on a slow certificate check with no HTTP timeout. A 47-minute outage, £23,000 estimated cost. Ripple finds that same pattern across all 12 services and opens fix MRs before anything reaches production. The architecture is pattern-agnostic: the same pipeline works for any incident-grounded pattern: missing retry logic, SQL queries without indexes, race conditions in async handlers.
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* ── Competitors ── */}
@@ -228,7 +288,7 @@ export default function About() {
           <div className="rounded-lg border border-ripple-accent/20 bg-ripple-accent/5 p-5 flex flex-col gap-3">
             <span className="font-mono text-[10px] text-ripple-accent uppercase tracking-widest">TL;DR</span>
             <p className="text-sm text-ripple-text leading-relaxed">
-              Every competitor in this space lacks two things simultaneously — <strong className="text-ripple-text">production observability data</strong> and <strong className="text-ripple-text">autonomous action</strong>. Ripple is the only system that has both. ARGUS reviews the PR in front of it. Ripple reviews the PR, queries Dynatrace for the incident that proves why it's dangerous, then sweeps every service and opens fix MRs — all without human input.
+              Every competitor in this space lacks two things simultaneously: <strong className="text-ripple-text">production observability data</strong> and <strong className="text-ripple-text">autonomous action</strong>. Ripple is the only system that has both. ARGUS reviews the PR in front of it. Ripple reviews the PR, queries Dynatrace for the incident that proves why it's dangerous, then sweeps every service and opens fix MRs, all without human input.
             </p>
           </div>
 
@@ -241,7 +301,7 @@ export default function About() {
                 verdict: 'Best for deep single-PR review',
                 rippleEdge: 'ARGUS knows what broke before (from git). Ripple knows what breaking cost (from Dynatrace) and fixes it across every service automatically.',
                 theyWin: 'Your team wants thoughtful, multi-pass PR commentary with failure scenario simulation and reviewer-reaction learning. ARGUS is excellent at this.',
-                weWin: 'You want a PR to trigger an autonomous sweep of your entire codebase and open targeted fix MRs grounded in a real production incident — not just a review comment.',
+                weWin: 'You want a PR to trigger an autonomous sweep of your entire codebase and open targeted fix MRs grounded in a real production incident; not just a review comment.',
               },
               {
                 name: 'GitMem',
@@ -366,7 +426,7 @@ export default function About() {
                   'Production-grounded data from real Dynatrace incidents',
                   'Codebase-wide autonomous sweep from a single PR',
                   'Autonomous fix MR creation across all affected services',
-                  'Real failure replay — actual traces, not hypothetical simulation',
+                  'Real failure replay: actual traces, not hypothetical simulation',
                   'Quantified impact: "47-minute outage, £23k"',
                   'Three MCPs: Dynatrace + GitLab + MongoDB',
                 ].map(w => (
@@ -381,11 +441,11 @@ export default function About() {
               <span className="font-mono text-[10px] text-ripple-subtle uppercase tracking-widest">Where Ripple is weak (and why)</span>
               <ul className="flex flex-col gap-2">
                 {[
-                  'No reviewer reaction learning yet — addressed by MongoDB memory store',
-                  'No self-learning over time yet — addressed by scar/win accumulation',
-                  'No PR diagram generation yet — planned, will use real DT traces',
-                  'No general code quality review — intentional scope, not a bug',
-                  'GitHub support not yet available — GitLab only today',
+                  'No reviewer reaction learning yet; addressed by MongoDB memory store',
+                  'No self-learning over time yet; addressed by scar/win accumulation',
+                  'No PR diagram generation yet; planned, will use real DT traces',
+                  'No general code quality review; intentional scope, not a bug',
+                  'GitHub support not yet available; GitLab only today',
                 ].map(w => (
                   <li key={w} className="flex items-start gap-2 text-xs text-ripple-subtle leading-relaxed">
                     <PLAN />
@@ -402,7 +462,7 @@ export default function About() {
       {/* Footer */}
       <footer className="border-t border-white/5 mt-8">
         <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
-          <p className="font-mono text-[10px] text-ripple-subtle">Ripple · Incident-grounded code review · ripple.dev</p>
+          <p className="font-mono text-[10px] text-ripple-subtle">Ripple · Incident-grounded code review · Google Cloud Rapid Agent Hackathon 2026</p>
           <Link href="/" className="font-mono text-[10px] text-ripple-accent hover:underline">← Back to Live Dashboard</Link>
         </div>
       </footer>

@@ -1,16 +1,17 @@
+from orchestrator.routes.feedback import router as feedback_router
+from orchestrator.routes.demo import router as demo_router
+from orchestrator.routes.admin import router as admin_router
+from orchestrator.routes.internal import router as internal_router
+from orchestrator.routes.ws import router as ws_router
+from orchestrator.routes.webhook import router as webhook_router
+from orchestrator.routes.health import router as health_router
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
 import logging
 from dotenv import load_dotenv
 load_dotenv()
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from orchestrator.routes.health import router as health_router
-from orchestrator.routes.webhook import router as webhook_router
-from orchestrator.routes.ws import router as ws_router
-from orchestrator.routes.internal import router as internal_router
-from orchestrator.routes.admin import router as admin_router
-from orchestrator.routes.demo import router as demo_router
-from orchestrator.routes.feedback import router as feedback_router
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
 app = FastAPI(title="Ripple Orchestrator")
 

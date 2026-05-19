@@ -166,7 +166,7 @@ Set `AUTO_FIX_THRESHOLD` (default `7`) on the orchestrator. Services with a risk
 ```bash
 curl -X POST https://ripple-orchestrator-mctjeick3a-nw.a.run.app/webhook \
   -H "Content-Type: application/json" \
-  -H "X-Gitlab-Token: $GITLAB_WEBHOOK_SECRET" \
+  -H "X-Gitlab-Token: <your-webhook-secret>" \
   -d '{
     "pr_id": "demo-run",
     "repo": "cypherguy-group/pulsecheck/ssl-monitor",
@@ -195,12 +195,12 @@ Create `.env`:
 
 ```
 DT_ENVIRONMENT=your-env.apps.dynatrace.com
-DT_PLATFORM_TOKEN=dt0s16.xxx
-DT_OTEL_TOKEN=dt0c01.xxx          # needs openTelemetryTrace.ingest scope
-DT_EVENTS_TOKEN=dt0c01.xxx
-GITLAB_TOKEN=glpat-xxx
-MONGODB_URI=mongodb+srv://...
-GEMINI_API_KEY=AIza...
+DT_PLATFORM_TOKEN=<dynatrace-platform-token>
+DT_OTEL_TOKEN=<dynatrace-otel-token>         # needs openTelemetryTrace.ingest scope
+DT_EVENTS_TOKEN=<dynatrace-events-token>
+GITLAB_TOKEN=<gitlab-personal-access-token>
+MONGODB_URI=<mongodb-atlas-connection-string>
+GEMINI_API_KEY=<gemini-api-key>
 DEMO_NAMESPACE=your-gitlab-group/your-project
 INTERNAL_SECRET=<secrets.token_urlsafe(32)>
 ADMIN_SECRET=<secrets.token_urlsafe(32)>
@@ -208,8 +208,8 @@ GITLAB_WEBHOOK_SECRET=<secrets.token_urlsafe(32)>
 ```
 
 ```bash
-python scripts/validate_mcps.py        # confirm Dynatrace + GitLab connectivity
-.venv/bin/python -m pytest             # 164 tests, all green
+python scripts/validate_mcps.py
+.venv/bin/python -m pytest
 ```
 
 Run all four services:
