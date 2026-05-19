@@ -5,6 +5,7 @@ import { useRippleSocket } from '../hooks/useRippleSocket'
 import ServiceGrid from '../components/ServiceGrid'
 import SummaryBar from '../components/SummaryBar'
 import IncidentPanel from '../components/IncidentPanel'
+import PipelineTimeline from '../components/PipelineTimeline'
 
 const TOTAL_SERVICES = 12
 const ORCHESTRATOR_URL = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL
@@ -13,7 +14,7 @@ const ORCHESTRATOR_URL = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL
     : 'http://localhost:8000')
 
 export default function Dashboard() {
-  const { services, summary, reset } = useRippleSocket()
+  const { services, summary, timeline, reset } = useRippleSocket()
   const [closing, setClosing] = useState(false)
   const [closeResult, setCloseResult] = useState<string | null>(null)
   const [triggering, setTriggering] = useState(false)
@@ -210,6 +211,9 @@ export default function Dashboard() {
 
         {/* Service grid */}
         <ServiceGrid services={services} onApprove={approveService} onSkip={skipService} />
+
+        {/* Pipeline timeline */}
+        <PipelineTimeline timeline={timeline} />
 
         {/* Footer */}
         <footer className="mt-auto pt-4 border-t border-white/5">

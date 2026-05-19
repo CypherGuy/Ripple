@@ -26,6 +26,19 @@ export interface ScanSummary {
   riskScore: number | null
 }
 
+export interface ServiceTiming {
+  scanStartMs: number | null
+  scanEndMs: number | null
+  mrOpenedMs: number | null
+  outcome: 'hit' | 'clean' | null
+}
+
+export interface PipelineTimeline {
+  startMs: number | null
+  intelligenceEndMs: number | null
+  services: Record<string, ServiceTiming>
+}
+
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL
   ?? (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
     ? 'wss://ripple-orchestrator-mctjeick3a-nw.a.run.app/ws'
@@ -35,6 +48,9 @@ export function useRippleSocket() {
   const [services, setServices] = useState<Map<string, ServiceState>>(new Map())
   const [summary, setSummary] = useState<ScanSummary>({
     scanned: 0, hits: 0, clean: 0, mrsOpened: 0, connected: false, riskScore: null,
+  })
+  const [timeline, setTimeline] = useState<PipelineTimeline>({
+    startMs: null, intelligenceEndMs: null, services: {},
   })
   const ws = useRef<WebSocket | null>(null)
   const settled = useRef<Set<string>>(new Set())
@@ -77,7 +93,16 @@ export function useRippleSocket() {
             }
 
             if (event.event === 'agent_started') {
+              const nowMs = Date.now()
               next.set(svc, { ...current, status: 'scanning', timestamp: event.timestamp })
+              setTimeline(t => ({
+                ...t,
+                startMs: t.startMs ?? nowMs,
+                services: {
+                  ...t.services,
+                  [svc]: { ...(t.services[svc] ?? { scanStartMs: null, scanEndMs: null, mrOpenedMs: null, outcome: null }), scanStartMs: t.services[svc]?.scanStartMs ?? nowMs },
+                },
+              }))
             } else if (event.event === 'hit_found') {
               next.set(svc, {
                 status: 'hit',
@@ -96,14 +121,23 @@ export function useRippleSocket() {
                 settled.current.add(svc)
                 setSummary(s => ({ ...s, scanned: s.scanned + 1, hits: s.hits + 1 }))
               }
+              setTimeline(t => ({
+                ...t,
+                services: { ...t.services, [svc]: { ...(t.services[svc] ?? { scanStartMs: null, scanEndMs: null, mrOpenedMs: null, outcome: null }), scanEndMs: Date.now(), outcome: 'hit' } },
+              }))
             } else if (event.event === 'no_hit') {
               next.set(svc, { ...current, status: 'clean', timestamp: event.timestamp })
               if (!settled.current.has(svc)) {
                 settled.current.add(svc)
                 setSummary(s => ({ ...s, scanned: s.scanned + 1, clean: s.clean + 1 }))
               }
+              setTimeline(t => ({
+                ...t,
+                services: { ...t.services, [svc]: { ...(t.services[svc] ?? { scanStartMs: null, scanEndMs: null, mrOpenedMs: null, outcome: null }), scanEndMs: Date.now(), outcome: 'clean' } },
+              }))
             } else if (event.event === 'risk_scored') {
               setSummary(s => ({ ...s, riskScore: event.risk_score ?? null }))
+              setTimeline(t => ({ ...t, intelligenceEndMs: Date.now() }))
             } else if (event.event === 'requires_approval') {
               next.set(svc, {
                 ...current,
@@ -125,6 +159,10 @@ export function useRippleSocket() {
                 correctionIterations: event.correction_iterations ?? null,
                 incidentId: event.incident_id ?? null,
               })
+              setTimeline(t => ({
+                ...t,
+                services: { ...t.services, [svc]: { ...(t.services[svc] ?? { scanStartMs: null, scanEndMs: null, mrOpenedMs: null, outcome: null }), mrOpenedMs: Date.now() } },
+              }))
               if (event.mr_url && !settledMrUrls.current.has(event.mr_url)) {
                 settledMrUrls.current.add(event.mr_url)
                 setSummary(s => ({ ...s, mrsOpened: s.mrsOpened + 1 }))
@@ -150,7 +188,8 @@ export function useRippleSocket() {
     settledMrUrls.current.clear()
     setServices(new Map())
     setSummary(s => ({ ...s, scanned: 0, hits: 0, clean: 0, mrsOpened: 0, riskScore: null }))
+    setTimeline({ startMs: null, intelligenceEndMs: null, services: {} })
   }
 
-  return { services, summary, reset }
+  return { services, summary, timeline, reset }
 }
