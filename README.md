@@ -1,85 +1,164 @@
 # Ripple
 
-> Every other code review tool asks "did this pattern appear before?" Ripple asks "did this pattern cause an outage — and where else is it hiding right now?"
+Ripple shift-lefts your incident history into your PR review: not static analysis, but real Dynatrace traces that tell you whether this pattern has caused an outage before.
 
-Built for the [Google Cloud Rapid Agent Hackathon](https://rapid-agent.devpost.com) — Dynatrace track.
-
-**Live dashboard:** https://ripple-dashboard-105645459605.europe-west2.run.app
+**Live dashboard:** https://ripple-dashboard-105645459605.europe-west2.run.app  
+**About & competitor analysis:** https://ripple-dashboard-105645459605.europe-west2.run.app/about
 
 ---
 
-## What it does
+## The Problem
 
-Ripple detects dangerous code patterns in incoming GitLab PRs by checking whether that pattern has ever caused a real production incident in Dynatrace. When it finds a match, it fans out across every service in your codebase simultaneously and opens targeted fix MRs — each grounded in the exact incident that proved why the pattern is dangerous.
+The same pattern that caused your last outage is being reintroduced by AI-assisted PRs right now.
 
-The demo runs against **PulseCheck** — a real 12-service Python monitoring platform hosted on GitLab. The incident it's grounded in is **P-26051**: a 47-minute outage caused by `ssl-monitor` hanging on a slow certificate check with no HTTP timeout. Ripple finds that same pattern across all 12 services and opens fix MRs before anything reaches production.
+A developer (or an AI coding agent) adds an HTTP call without a timeout. It passes code review. It merges. Six months later, a slow third-party endpoint causes your service to hang, the thread pool exhausts, and the cascade begins. That's P-26051: a 47-minute outage, £23,000 in estimated cost.
+
+The same pattern existed in eleven other services, introduced by three different developers over eighteen months. Nobody knew. Nobody connected the PR that opened it to the incident that proved it was dangerous.
+
+Every other code review tool asks *"did this pattern appear before?"* Ripple asks *"did this pattern cause an outage, and where else is it hiding right now?"*
+
+---
+
+## What Ripple Does
+
+Ripple is a multi-agent AI system that intercepts GitLab PRs, checks them against real Dynatrace production incident history, fans out across every service in your codebase simultaneously, and autonomously opens fix MRs. Each MR is grounded in the exact incident that proved why the pattern is dangerous.
+
+One PR fires the pipeline. Twelve services are scanned in parallel. Fix MRs appear in GitLab within minutes, each citing the specific Dynatrace incident ID, duration, and estimated cost. The developer does not need to know the pattern was dangerous. Ripple already does.
+
+---
+
+## Demo Environment
+
+The demo runs against **PulseCheck**, a real 12-service Python monitoring platform on GitLab. The incident is **P-26051**: a 47-minute outage caused by `ssl-monitor` hanging on a slow certificate check with no HTTP timeout. Ripple finds that same pattern across all 12 services and opens fix MRs before anything reaches production.
+
+**Generalisation:** Ripple's architecture is pattern-agnostic. Timeouts were chosen because they caused the demo incident, not because they are the only pattern. The same pipeline works for any incident-grounded pattern: SQL queries missing indexes, race conditions in async handlers, missing retry logic on third-party calls. Any engineering team with a monitoring platform and a git-based workflow is a potential user. Twelve services fixed in one pipeline run; the same architecture scales to 200.
 
 ---
 
 ## Architecture
 
-Four FastAPI microservices on Google Cloud Run (London), coordinated via A2A protocol with Gemini as the model and Google ADK for agentic tool use.
+Four FastAPI microservices on Google Cloud Run (London), coordinated via A2A protocol. Each service is powered by a Google ADK `LlmAgent` with FunctionTools that the agent calls based on its own assessment of what information it needs.
 
 ```
-GitLab Webhook
-      │
-      ▼
-┌─────────────┐
-│ Orchestrator │  FastAPI · asyncio · httpx
-└──────┬──────┘
-       │ A2A
-       ▼
+GitLab Webhook / Trigger Demo
+        │
+        ▼
+┌───────────────┐
+│  Orchestrator  │  FastAPI · asyncio · httpx · WebSocket broadcaster
+└───────┬───────┘
+        │ A2A
+        ▼
 ┌─────────────────┐
-│  Intelligence   │  LlmAgent (Google ADK) + Dynatrace FunctionTool
-│    Service      │  extracts semantic risk pattern from PR diff
-└──────┬──────────┘
-       │ A2A (fan-out)
-       ▼
+│  Intelligence   │  ADK LlmAgent + Dynatrace FunctionTool
+│    Service      │  Agent decides whether to query Dynatrace based on diff severity
+└───────┬─────────┘
+        │ A2A (per-hit fan-out; fixes start before scanning finishes)
+        ▼
 ┌─────────────────┐
-│    Scanner      │  asyncio.gather() — one Gemini call per service
-│    Service      │  reads code via GitLab REST API
-└──────┬──────────┘
-       │ A2A
-       ▼
+│    Scanner      │  ADK LlmAgent + GitLab FunctionTool
+│    Service      │  Agent decides which files to fetch per service
+└───────┬─────────┘
+        │ A2A
+        ▼
 ┌─────────────────┐
-│   Fix Factory   │  fix agent + eval agent per hit
-│                 │  self-correction loop (up to 3 iterations)
-└─────────────────┘  opens fix MRs via GitLab REST API
+│   Fix Factory   │  ADK LlmAgent + GitLab history FunctionTool (fix agent)
+│                 │  ADK LlmAgent + Dynatrace trace FunctionTool (eval agent)
+└─────────────────┘  Self-correction loop · opens MRs · writes MongoDB outcomes
 ```
 
-See [`architecture.html`](architecture.html) for the full interactive diagram.
+The pipeline overlaps scanning and fixing: the moment a service reports a hit, Fix Factory starts on it while the remaining services are still scanning. The first MR can open before the last service finishes.
 
 ---
 
 ## Three MCPs
 
-| MCP               | Track     | Role                                                                                                                                                                                                                  |
-| ----------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Dynatrace**     | Primary   | Incident history via `query-problems`, span traces via `execute-dql`. The Intelligence LlmAgent calls this as a FunctionTool — it decides whether the diff looks dangerous enough to query, genuine agentic tool use. |
-| **GitLab**        | Secondary | Codebase read (source files per service), MR creation, closed MR history for fix precedents. Used via REST API.                                                                                                       |
-| **MongoDB Atlas** | Tertiary  | Institutional memory — scars (rejected fixes, risk −2) and wins (merged fixes, confidence +1). Vector search finds similar past cases on new PRs.                                                                     |
+| MCP | Track | Role |
+|-----|-------|------|
+| **Dynatrace** | Primary | Intelligence queries `query-problems` for incident history matching the PR diff. The ADK agent decides whether the diff warrants a query; it is not called automatically. The evaluator re-fetches real traces via `execute-dql` to validate each fix against the actual failure before opening an MR. Ripple's own Gemini calls are traced in Dynatrace via OpenTelemetry. |
+| **GitLab** | Secondary | Scanner fetches source files per service. Fix Factory pulls closed MR history for fix precedents. MRs are opened with incident context embedded in the description. |
+| **MongoDB Atlas** | Tertiary | Institutional memory: every merged fix is a Win (confidence +1), every rejected fix is a Scar (risk −2). Subsequent scans query this history. Ripple gets smarter with every developer interaction. |
 
 ---
 
-## Deployed services
+## Google ADK Integration
 
-| Service      | URL                                                        |
-| ------------ | ---------------------------------------------------------- |
-| Dashboard    | https://ripple-dashboard-105645459605.europe-west2.run.app |
-| Orchestrator | https://ripple-orchestrator-mctjeick3a-nw.a.run.app        |
-| Intelligence | https://ripple-intelligence-mctjeick3a-nw.a.run.app        |
-| Scanner      | https://ripple-scanner-mctjeick3a-nw.a.run.app             |
-| Fix Factory  | https://ripple-fix-factory-mctjeick3a-nw.a.run.app         |
+All four services use Google ADK `LlmAgent` with `FunctionTool`:
 
-All services run on Cloud Run `europe-west2`. Secrets managed via GCP Secret Manager.
+- **Intelligence** — `LlmAgent` with Dynatrace `FunctionTool`. The agent receives the raw PR diff and decides whether to query Dynatrace for incident history. If the diff looks benign, it skips the call. If it looks dangerous, it fetches real incident traces and grounds its risk score in them.
+- **Scanner** — `LlmAgent` with GitLab `FunctionTool`. The agent decides which files to fetch from each service's repository before searching for the pattern.
+- **Fix Factory (fix agent)** — `LlmAgent` with GitLab history `FunctionTool`. The agent can pull how this team has fixed similar patterns before, generating a contextual patch rather than a generic one.
+- **Fix Factory (eval agent)** — `LlmAgent` with Dynatrace trace `FunctionTool`. The agent validates the proposed fix against the actual incident traces, not just in theory, but against the specific failure that proved the pattern was dangerous.
 
 ---
 
-## Running a demo scan
+## OpenTelemetry to Dynatrace
 
-### One-click (dashboard)
+Dynatrace observes Ripple the same way Ripple observes your code.
 
-Open the dashboard and click **Trigger Demo**. The pipeline fires with the P-26051 incident payload, scanning all 12 PulseCheck services in real time.
+Every pipeline run ships spans to `jfr54188.live.dynatrace.com` via the OTLP exporter:
+
+- `ripple.intelligence.adk_run` — latency, whether Dynatrace was queried, response length
+- `ripple.scanner.scan_service` — per service: files fetched, hits found, confidence
+- `ripple.fix_factory.run_with_correction` — per service: iterations taken, evaluation pass/fail, `evaluated_on: incident_context`
+
+The `evaluated_on: incident_context` attribute on the Fix Factory span proves the fix was validated against real Dynatrace incident data, not just technical correctness.
+
+---
+
+## Institutional Memory
+
+MongoDB stores every scan outcome as a Scar or Win:
+
+```
+Win  → merged fix, no incidents since → confidence_boost: +1
+Scar → rejected fix, pattern was intentional → risk_adjustment: -2
+```
+
+Every subsequent scan on the same codebase queries this history. Scars lower the risk score on patterns a team has deliberately chosen not to fix. Wins raise confidence on patterns they have already addressed. The system compounds; it does not ask you the same question twice.
+
+When accumulated scars push a risk score below the configurable `AUTO_FIX_THRESHOLD`, Ripple switches from auto-fixing to requesting approval. The developer sees **Approve / Skip** buttons on the dashboard tile rather than an automatically opened MR. You are the architect; Ripple is the junior developer.
+
+---
+
+## The Dashboard
+
+Real-time developer tool, not an ops screen.
+
+Five tile states: **Idle, Scanning, Hit, Clean, Approval**. The moment Intelligence returns a risk score, it appears in the incident panel. The moment a service reports a hit, the scanner and fix factory run in parallel for that service. MRs appear tile-by-tile as they open in GitLab.
+
+Each hit tile shows:
+- **Incident: P-26051** — the specific incident that grounded this fix
+- **eval 1/3** — which iteration the self-correction loop passed on
+- **DT trace ↗** — direct link to the Dynatrace span for this fix
+- **View MR ↗** — the actual GitLab MR
+
+The Pipeline Trace section below the grid shows a live Gantt: Intelligence duration, scan phase per service, fix generation per service. The elapsed timer counts up during the run and freezes on completion.
+
+---
+
+## Deployed Services
+
+| Service | URL |
+|---------|-----|
+| Dashboard | https://ripple-dashboard-105645459605.europe-west2.run.app |
+| Orchestrator | https://ripple-orchestrator-mctjeick3a-nw.a.run.app |
+| Intelligence | https://ripple-intelligence-mctjeick3a-nw.a.run.app |
+| Scanner | https://ripple-scanner-mctjeick3a-nw.a.run.app |
+| Fix Factory | https://ripple-fix-factory-mctjeick3a-nw.a.run.app |
+
+All services run on Cloud Run `europe-west2`. Secrets are managed via GCP Secret Manager. `--min-instances=1` is set on all backend services to eliminate cold-start latency.
+
+---
+
+## Running the Demo
+
+### One click
+
+Open the dashboard and click **▶ Trigger Demo**. The pipeline fires with the P-26051 incident payload, scanning all 12 PulseCheck services in real time. No terminal required.
+
+### Risk threshold
+
+Set `AUTO_FIX_THRESHOLD` (default `7`) on the orchestrator. Services with a risk score below threshold show **Approve / Skip** buttons on the dashboard rather than auto-opening an MR.
 
 ### curl
 
@@ -100,13 +179,9 @@ curl -X POST https://ripple-orchestrator-mctjeick3a-nw.a.run.app/webhook \
   }' | jq .
 ```
 
-### Risk threshold
-
-Set `AUTO_FIX_THRESHOLD` (default `7`) on the orchestrator. Services with a risk score below threshold show **Approve / Skip** buttons on the dashboard instead of auto-fixing — keeping you in control.
-
 ---
 
-## Local setup
+## Local Setup
 
 ```bash
 git clone https://github.com/CypherGuy/Ripple.git
@@ -120,20 +195,20 @@ Create `.env`:
 ```
 DT_ENVIRONMENT=your-env.apps.dynatrace.com
 DT_PLATFORM_TOKEN=dt0s16.xxx
-DT_OTEL_TOKEN=dt0s16.xxx
-DT_EVENTS_TOKEN=dt0s16.xxx
+DT_OTEL_TOKEN=dt0c01.xxx          # needs openTelemetryTrace.ingest scope
+DT_EVENTS_TOKEN=dt0c01.xxx
 GITLAB_TOKEN=glpat-xxx
 MONGODB_URI=mongodb+srv://...
 GEMINI_API_KEY=AIza...
-DEMO_NAMESPACE=cypherguy-group/pulsecheck
-INTERNAL_SECRET=generate-with-secrets.token_urlsafe-32
-ADMIN_SECRET=generate-with-secrets.token_urlsafe-32
-GITLAB_WEBHOOK_SECRET=generate-with-secrets.token_urlsafe-32
+DEMO_NAMESPACE=your-gitlab-group/your-project
+INTERNAL_SECRET=<secrets.token_urlsafe(32)>
+ADMIN_SECRET=<secrets.token_urlsafe(32)>
+GITLAB_WEBHOOK_SECRET=<secrets.token_urlsafe(32)>
 ```
 
 ```bash
-python scripts/validate_mcps.py   # confirm Dynatrace + GitLab connectivity
-pytest                             # 117 tests, all green
+python scripts/validate_mcps.py        # confirm Dynatrace + GitLab connectivity
+.venv/bin/python -m pytest             # 164 tests, all green
 ```
 
 Run all four services:
@@ -151,75 +226,28 @@ cd dashboard && npm install && npm run dev
 ## Deploy to Cloud Run
 
 ```bash
-# Deploy all services
-python3 scripts/cloud_deploy.py
-
-# Deploy a single service
-python3 scripts/cloud_deploy.py orchestrator
+python3 scripts/cloud_deploy.py              # all services
+python3 scripts/cloud_deploy.py orchestrator # single service
 ```
 
-Requires `gcloud` authenticated to project `ripple-496422`. Builds via Cloud Build, deploys to `europe-west2`. All secrets are pulled from Secret Manager at runtime — no credentials in the image.
+Builds via Cloud Build, deploys to `europe-west2`. All secrets are pulled from Secret Manager at runtime.
 
 ---
 
-## What's built
+## Tech Stack
 
-### Phase 1 — MCP validation
-
-`scripts/validate_mcps.py` confirms live connectivity to Dynatrace and GitLab before any service runs.
-
-### Phase 2 — Orchestrator
-
-Webhook receiver (`POST /webhook` with `X-Gitlab-Token` signature check), pipeline coordinator, WebSocket broadcaster (`/ws`), rate-limited demo trigger (`POST /demo/trigger`, 60s cooldown), admin close-MRs endpoint, risk-threshold approval endpoint (`POST /internal/approve`).
-
-### Phase 3 — Intelligence Service
-
-`POST /analyze` — extracts a semantic risk pattern from the PR diff using a Google ADK `LlmAgent` with a Dynatrace `FunctionTool`. The agent decides whether to call Dynatrace based on how dangerous the diff looks. If it does, it gets real incident history (P-26051: 47 min, £23k). Risk score is floored at 9 for incidents ≥ 47 minutes.
-
-### Phase 4 — MongoDB Institutional Memory
-
-`ripple.scars` and `ripple.wins` collections store every scan outcome. Wins boost confidence; scars lower risk for services that intentionally skip patterns. `find_similar_wins()` / `find_similar_scars()` query by pattern similarity before scoring.
-
-### Phase 5–6 — Scanner Service
-
-`POST /scan` fans out across all 12 PulseCheck services with `asyncio.gather()`. Each service gets a Gemini call that reads its source files from GitLab and hunts the semantic pattern. Streaming events (`agent_started`, `hit_found`, `no_hit`) fire to the dashboard in real time via `/internal/broadcast` callbacks. One fix MR per service — highest-confidence hit when a service has multiple matches.
-
-### Phase 7–8 — Fix Factory
-
-`POST /fix` runs a self-correction loop (up to 3 iterations): fix agent generates a patch, eval agent checks whether it addresses the root cause, rationale feeds back if it fails. On pass, `create_mr()` opens a GitLab MR with the incident ID, duration, and cost embedded in the description. Service tiles show a **DT-grounded** badge when the eval used real Dynatrace incident data.
-
-### Phase 9 — Next.js Dashboard
-
-Real-time 12-tile grid. Five states per tile: **Idle** (grey) → **Scanning** (amber pulse) → **Hit** (red glow + View MR) / **Clean** (green) / **Approval** (indigo, Approve/Skip buttons). Incident panel shows P-26051 context across the top. Summary bar tracks scanned / hits / clean / MRs opened.
-
-### Phase 10 — End-to-end A2A wiring
-
-`X-Trace-Id` (uuid4) propagated through all downstream calls. Full pipeline: webhook → Intelligence → Scanner → Fix Factory → MR. 117 tests covering every service, route, and integration point.
-
-### Phase 11 — PulseCheck target environment
-
-12 real GitLab repos under `cypherguy-group/pulsecheck` with genuine Python monitoring code. `scripts/setup_pulsecheck.py` creates and populates them. Dynatrace problem P-26051 pushed via Events API and wired into the pipeline.
-
-### Phase 12 — Security hardening & deployment
-
-15 documented bugs fixed (see [`BUGS.md`](BUGS.md)). Hardening includes: DQL injection validation, SSRF allowlist on scanner callbacks, diff size cap (64 KB), `X-Internal-Secret` on internal routes, `X-Admin-Secret` on admin routes, service name allowlist on `/fix`, open-redirect fix on MR URLs, `GITLAB_WEBHOOK_SECRET` enforced on incoming webhooks.
-
----
-
-## Security notes (services are live)
-
-- Incoming webhooks validated via `X-Gitlab-Token` against `GITLAB_WEBHOOK_SECRET` in Secret Manager
-- Internal broadcast endpoint requires `X-Internal-Secret`
-- Admin close-MRs endpoint requires `X-Admin-Secret`
-- Fix Factory rejects unknown service names (allowlist of 32 known services)
-- Scanner callback URL validated against `ORCHESTRATOR_URL` allowlist (SSRF protection)
-- Orchestrator runs at `--max-instances=1` so the in-memory rate limiter on `/demo/trigger` is effective
-
----
-
-## About page
-
-The dashboard's `/about` page has a full competitor analysis (ARGUS, GitMem, CodeRabbit, Semgrep, SonarQube), a feature comparison matrix, and architecture narrative for judges.
+| Layer | Technology |
+|-------|-----------|
+| Agent framework | Google ADK (`LlmAgent`, `FunctionTool`, `Runner`) |
+| Model | Gemini 2.5 Flash (via ADK) |
+| Observability | OpenTelemetry to Dynatrace (`jfr54188.live.dynatrace.com`) |
+| Primary MCP | Dynatrace (`query-problems`, `execute-dql`) |
+| Secondary | GitLab REST API |
+| Tertiary | MongoDB Atlas (institutional memory) |
+| Backend | FastAPI · Python 3.13 · asyncio · httpx |
+| Frontend | Next.js 14 · Tailwind CSS · WebSocket |
+| Infrastructure | Google Cloud Run · Cloud Build · Secret Manager |
+| Tests | pytest · 164 tests · TDD throughout |
 
 ---
 
