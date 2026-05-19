@@ -101,11 +101,15 @@ def scan_service(
 
         if _gemini_fn is None:
             # ADK path: LlmAgent with GitLab FunctionTool decides which files to fetch
-            hits = call_scanner_adk(service, pattern)
-            span.set_attribute("files.count", -1)  # agent manages file fetching
-            span.set_attribute("hits.count", len(hits))
-            span.set_attribute("hit.found", len(hits) > 0)
-            return hits
+            # Falls back to non-ADK path if ADK fails so we never silently return clean
+            try:
+                hits = call_scanner_adk(service, pattern)
+                span.set_attribute("files.count", -1)
+                span.set_attribute("hits.count", len(hits))
+                span.set_attribute("hit.found", len(hits) > 0)
+                return hits
+            except Exception:
+                _gemini_fn = _default_gemini  # fall through to non-ADK path
 
         token = os.environ.get("GITLAB_TOKEN", "")
         files = read_service_files(service["gitlab_namespace"], token, _files_override=_files_override)

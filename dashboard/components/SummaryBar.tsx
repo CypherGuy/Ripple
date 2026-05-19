@@ -1,4 +1,5 @@
 'use client'
+import { useState, useEffect } from 'react'
 import type { ScanSummary } from '../hooks/useRippleSocket'
 
 interface Props {
@@ -18,7 +19,18 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
 }
 
 export default function SummaryBar({ summary, total }: Props) {
+  const [tick, setTick] = useState(Date.now())
+
+  useEffect(() => {
+    if (!summary.pipelineStartMs || summary.pipelineEndMs) return
+    const id = setInterval(() => setTick(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [summary.pipelineStartMs, summary.pipelineEndMs])
+
   const progress = total > 0 ? (summary.scanned / total) * 100 : 0
+  const elapsedMs = summary.pipelineEndMs
+    ? summary.pipelineEndMs - summary.pipelineStartMs!
+    : summary.pipelineStartMs ? tick - summary.pipelineStartMs : null
 
   return (
     <div className="flex flex-col gap-3">
@@ -36,12 +48,10 @@ export default function SummaryBar({ summary, total }: Props) {
         <Stat value={summary.mrsOpened} label="MRs opened" color="text-ripple-accent" />
 
         {/* Elapsed time */}
-        {summary.pipelineStartMs && (
+        {elapsedMs !== null && (
           <div className="flex flex-col items-center gap-0.5">
             <span className="font-mono text-2xl font-bold tabular-nums tracking-tight text-ripple-subtle">
-              {summary.pipelineEndMs
-                ? `${((summary.pipelineEndMs - summary.pipelineStartMs) / 1000).toFixed(1)}s`
-                : `${((Date.now() - summary.pipelineStartMs) / 1000).toFixed(0)}s`}
+              {`${(elapsedMs / 1000).toFixed(summary.pipelineEndMs ? 1 : 0)}s`}
             </span>
             <span className="font-mono text-[9px] uppercase tracking-widest text-ripple-subtle">
               {summary.pipelineEndMs ? 'completed in' : 'elapsed'}
