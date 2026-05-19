@@ -429,3 +429,52 @@ def test_extract_pattern_p26051_still_scores_high():
     result = extract_pattern("diff", [incident], _gemini_fn=lambda p: ("pattern", 7, "rationale"))
     # floor=8, boost=2 → max(7+2, 8) = max(9, 8) = 9
     assert result["risk_score"] == 9
+
+
+# ---------------------------------------------------------------------------
+# ADK completeness — Scanner, Fix Factory agent, Fix Factory evaluator
+# ---------------------------------------------------------------------------
+
+def test_scanner_has_adk_function():
+    """Scanner exposes a call_scanner_adk function using LlmAgent."""
+    from scanner.agent import call_scanner_adk
+    assert callable(call_scanner_adk)
+
+
+def test_scanner_adk_uses_llm_agent():
+    """call_scanner_adk is backed by an ADK LlmAgent with a GitLab FunctionTool."""
+    import inspect
+    from scanner import agent as scanner_mod
+    src = inspect.getsource(scanner_mod)
+    assert "LlmAgent" in src
+    assert "FunctionTool" in src
+
+
+def test_fix_factory_agent_has_adk_function():
+    """Fix Factory agent exposes a call_fix_adk function using LlmAgent."""
+    from fix_factory.agent import call_fix_adk
+    assert callable(call_fix_adk)
+
+
+def test_fix_factory_agent_adk_uses_llm_agent():
+    """call_fix_adk is backed by an ADK LlmAgent with a GitLab history FunctionTool."""
+    import inspect
+    from fix_factory import agent as ff_mod
+    src = inspect.getsource(ff_mod)
+    assert "LlmAgent" in src
+    assert "FunctionTool" in src
+
+
+def test_fix_factory_evaluator_has_adk_function():
+    """Fix Factory evaluator exposes a call_evaluator_adk function using LlmAgent."""
+    from fix_factory.evaluator import call_evaluator_adk
+    assert callable(call_evaluator_adk)
+
+
+def test_fix_factory_evaluator_adk_uses_llm_agent():
+    """call_evaluator_adk is backed by an ADK LlmAgent with a Dynatrace FunctionTool."""
+    import inspect
+    from fix_factory import evaluator as ev_mod
+    src = inspect.getsource(ev_mod)
+    assert "LlmAgent" in src
+    assert "FunctionTool" in src

@@ -1,6 +1,12 @@
 import json
 import os
+import uuid
 from google import genai
+from google.adk.agents import LlmAgent
+from google.adk.tools import FunctionTool
+from google.adk import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai import types as genai_types
 
 
 def _gemini_client():
@@ -18,6 +24,83 @@ def _default_gemini(prompt: str) -> str:
     return text
 
 
+def _fetch_incident_traces_for_eval(incident_id: str) -> list[dict]:
+    """Fetch Dynatrace traces for an incident — used by the evaluator agent for validation."""
+    import asyncio
+    from fix_factory.tools.dynatrace_traces import get_incident_traces
+    env = os.environ.get("DT_ENVIRONMENT", "")
+    token = os.environ.get("DT_PLATFORM_TOKEN", "")
+    if not env or not token:
+        return []
+    try:
+        return asyncio.run(get_incident_traces(env, token, incident_id))
+    except Exception:
+        return []
+
+
+def call_evaluator_adk(hit: dict, patch: str) -> dict:
+    """Evaluate a fix using an ADK LlmAgent with a Dynatrace trace FunctionTool.
+
+    The agent can fetch real incident traces to validate whether the patch addresses the root cause.
+    """
+    ctx = hit.get("incident_context", {})
+    incident_id = ctx.get("incident_id", "")
+    lines = hit.get("matching_lines", [])
+
+    def _get_traces() -> list[dict]:
+        if not incident_id:
+            return []
+        return _fetch_incident_traces_for_eval(incident_id)
+
+    agent = LlmAgent(
+        name="ripple_evaluator",
+        model="gemini-2.5-flash",
+        instruction=(
+            "You are a senior engineer evaluating whether a code fix prevents a production incident. "
+            "A Dynatrace trace tool is available — use it if you need to validate the fix against "
+            "the actual incident traces. "
+            "Return a JSON object with exactly: "
+            "passed (bool), rationale (one sentence explaining why). "
+            "No markdown, no extra fields."
+        ),
+        tools=[FunctionTool(_get_traces)],
+    )
+
+    session_service = InMemorySessionService()
+    runner = Runner(
+        app_name="ripple-fix-factory",
+        agent=agent,
+        session_service=session_service,
+        auto_create_session=True,
+    )
+
+    root_cause = ctx.get("root_cause_summary", "")
+    prompt = (
+        f"Evaluate this code fix.\n\n"
+        f"Original code: {json.dumps(lines)}\n"
+        f"Proposed patch:\n{patch}\n\n"
+        f"Incident: {incident_id} — {ctx.get('duration_minutes', '?')} min outage.\n"
+        f"Root cause: {root_cause or 'Not available — evaluate on technical merit.'}\n\n"
+        f"Use the Dynatrace trace tool if you need more context. Return only the JSON object."
+    )
+    message = genai_types.Content(role="user", parts=[genai_types.Part(text=prompt)])
+
+    text = ""
+    for event in runner.run(user_id="system", session_id=str(uuid.uuid4()), new_message=message):
+        if event.is_final_response() and event.content and event.content.parts:
+            text = event.content.parts[0].text.strip()
+            break
+
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+    try:
+        result = json.loads(text)
+        evaluated_on = "incident_context" if root_cause and not _root_cause_missing(ctx) else "technical_merit"
+        return {"passed": bool(result.get("passed")), "rationale": result.get("rationale", ""), "evaluated_on": evaluated_on}
+    except Exception:
+        return {"passed": False, "rationale": "Could not parse evaluator response.", "evaluated_on": "technical_merit"}
+
+
 _MISSING_ROOT_CAUSE = {"", "no summary provided.", "no summary provided", "none"}
 
 
@@ -27,10 +110,11 @@ def _root_cause_missing(ctx: dict) -> bool:
 
 
 def evaluate_fix(hit: dict, patch: str, _gemini_fn=None) -> dict:
-    if _gemini_fn is None:
-        _gemini_fn = _default_gemini
-
     ctx = hit.get("incident_context", {})
+
+    if _gemini_fn is None:
+        # ADK path: LlmAgent with Dynatrace FunctionTool for trace-grounded evaluation
+        return call_evaluator_adk(hit, patch)
     lines = hit.get("matching_lines", [])
 
     if _root_cause_missing(ctx):
