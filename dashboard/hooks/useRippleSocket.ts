@@ -157,6 +157,8 @@ export function useRippleSocket() {
                 riskScore: event.risk_score ?? null,
                 pattern: event.pattern ?? null,
                 timestamp: event.timestamp ?? null,
+                fileHit: event.file_path ?? null,
+                confidence: event.confidence ?? null,
               })
             } else if (event.event === 'feedback_recorded') {
               // Only apply if the MR URL matches — prevents stale polling tasks

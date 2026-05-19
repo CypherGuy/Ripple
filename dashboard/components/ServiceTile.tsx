@@ -161,29 +161,42 @@ export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
           </span>
         )}
         {state.status === 'requires_approval' && (
-          <div className="flex items-center gap-1.5 mt-1">
-            <button
-              onClick={() => onApprove?.(name)}
-              className={[
-                'font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded border transition-all',
-                'border-ripple-accent/60 text-ripple-accent hover:bg-ripple-accent/15 hover:border-ripple-accent',
-                'cursor-pointer focus:outline-none focus:ring-1 focus:ring-ripple-accent/40',
-              ].join(' ')}
-              aria-label={`Approve fix for ${name}`}
-            >
-              Approve
-            </button>
-            <button
-              onClick={() => onSkip?.(name)}
-              className={[
-                'font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded border transition-all',
-                'border-white/10 text-ripple-subtle hover:border-white/20 hover:text-ripple-text',
-                'cursor-pointer focus:outline-none focus:ring-1 focus:ring-white/20',
-              ].join(' ')}
-              aria-label={`Skip fix for ${name}`}
-            >
-              Skip
-            </button>
+          <div className="flex flex-col gap-1 mt-1">
+            {state.fileHit && (
+              <span className="font-mono text-[8px] text-ripple-subtle/70 uppercase tracking-wider truncate">
+                {state.fileHit.split('/').pop()}
+                {state.confidence !== null && ` · ${Math.round(state.confidence * 100)}%`}
+              </span>
+            )}
+            {state.riskScore !== null && (
+              <span className="font-mono text-[8px] text-ripple-accent/70 uppercase tracking-wider">
+                risk {state.riskScore}/10 — below auto-fix threshold
+              </span>
+            )}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => onApprove?.(name)}
+                className={[
+                  'font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded border transition-all',
+                  'border-ripple-accent/60 text-ripple-accent hover:bg-ripple-accent/15 hover:border-ripple-accent',
+                  'cursor-pointer focus:outline-none focus:ring-1 focus:ring-ripple-accent/40',
+                ].join(' ')}
+                aria-label={`Approve fix for ${name}`}
+              >
+                Approve fix
+              </button>
+              <button
+                onClick={() => onSkip?.(name)}
+                className={[
+                  'font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded border transition-all',
+                  'border-white/10 text-ripple-subtle hover:border-white/20 hover:text-ripple-text',
+                  'cursor-pointer focus:outline-none focus:ring-1 focus:ring-white/20',
+                ].join(' ')}
+                aria-label={`Skip fix for ${name}`}
+              >
+                Skip
+              </button>
+            </div>
           </div>
         )}
       </div>

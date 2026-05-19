@@ -318,7 +318,10 @@ async def run_pipeline(
                     await _client.post(
                         f"{ORCHESTRATOR_URL}/internal/broadcast",
                         json={"event": "requires_approval", "service": svc,
-                              "risk_score": risk_score, "pattern": intel.get("pattern", "")},
+                              "risk_score": risk_score, "pattern": intel.get("pattern", ""),
+                              "file_path": hit.get("file_path", ""),
+                              "confidence": hit.get("confidence", 0),
+                              "gitlab_namespace": hit.get("gitlab_namespace", svc)},
                         headers={"X-Internal-Secret": internal_secret},
                         timeout=5,
                     )

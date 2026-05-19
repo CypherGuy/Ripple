@@ -55,11 +55,14 @@ def call_scanner_adk(service: dict, pattern: str) -> list[dict]:
         model="gemini-2.5-flash",
         instruction=(
             "You are a code scanner hunting for dangerous patterns in a GitLab repository. "
-            "A GitLab file-reading tool is available — use it to fetch the source files for "
-            "the service, then search for the pattern. "
-            "Return a JSON array of hits. Each hit must have: "
+            "A GitLab file-reading tool is available — use it to fetch the source files, then search for the pattern. "
+            "IMPORTANT: Match the semantic risk, not the exact wording. "
+            "For HTTP timeout patterns: flag ANY HTTP call (requests.get, requests.post, requests.put, "
+            "requests.delete, httpx.get, httpx.post, httpx.put, urllib.request.urlopen, etc.) "
+            "that does NOT pass a timeout argument. Do NOT flag calls that already have timeout=. "
+            "Return a JSON array of hits. Each hit: "
             "file_path (string), matching_lines ([{line_number, content}]), confidence (float 0-1). "
-            "Return [] if no hits found. Respond with only the JSON array, no markdown."
+            "Return [] if no hits. Respond with only the JSON array, no markdown."
         ),
         tools=[FunctionTool(_fetch_service_files)],
     )
