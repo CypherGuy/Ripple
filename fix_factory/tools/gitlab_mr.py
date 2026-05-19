@@ -1,6 +1,9 @@
+import logging
 import httpx
 import base64
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 _GITLAB_BASE = "https://gitlab.com/api/v4"
 
@@ -74,7 +77,8 @@ def create_mr(
                           headers=headers, timeout=10)
         mr_r.raise_for_status()
         return mr_r.json().get("web_url")
-    except Exception:
+    except Exception as e:
+        logger.exception("create_mr failed for %s: %s", gitlab_namespace, e)
         return None
 
 
