@@ -48,7 +48,7 @@ async def fix(payload: FixPayload):
     namespace = f"{DEMO_NAMESPACE}/{payload.service}"
 
     incident_id = payload.incident_context.get("incident_id", "")
-    traces = get_incident_traces(env, dt_token, incident_id)
+    traces = await get_incident_traces(env, dt_token, incident_id)
     precedents = get_fix_precedents(namespace, gl_token)
 
     hit = payload.model_dump()

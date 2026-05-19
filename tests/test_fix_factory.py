@@ -131,10 +131,14 @@ def test_post_fix_accepts_known_service(client):
     assert r.status_code == 200
 
 
-def test_get_incident_traces_raises_on_bad_credentials():
+def test_get_incident_traces_returns_empty_on_bad_credentials():
+    import asyncio
+    import fix_factory.tools.dynatrace_traces as dt_mod
+    dt_mod._trace_cache.clear()
     from fix_factory.tools.dynatrace_traces import get_incident_traces
-    with pytest.raises(Exception):
-        get_incident_traces("bad.env.com", "bad-token", "DT-4821")
+    # Async version catches exceptions and returns [] rather than raising
+    result = asyncio.run(get_incident_traces("bad.env.com", "bad-token", "DT-9999"))
+    assert result == []
 
 
 def test_validate_incident_id_accepts_valid_ids():
@@ -163,9 +167,10 @@ def test_validate_incident_id_rejects_spaces():
 
 
 def test_get_incident_traces_rejects_invalid_incident_id():
+    import asyncio
     from fix_factory.tools.dynatrace_traces import get_incident_traces
     with pytest.raises(ValueError):
-        get_incident_traces("env.example.com", "token", '" | fetch logs')
+        asyncio.run(get_incident_traces("env.example.com", "token", '" | fetch logs'))
 
 
 # --- _apply_patch unit tests ---
