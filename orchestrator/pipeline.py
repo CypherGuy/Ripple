@@ -58,7 +58,8 @@ async def poll_mr_status(
                     try:
                         await poll_client.post(
                             f"{ORCHESTRATOR_URL}/internal/broadcast",
-                            json={"event": "feedback_recorded", "service": service, "outcome": state},
+                            json={"event": "feedback_recorded", "service": service,
+                                  "outcome": state, "mr_url": mr_url},
                             headers={"X-Internal-Secret": internal_secret},
                             timeout=5,
                         )

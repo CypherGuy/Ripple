@@ -147,10 +147,14 @@ export function useRippleSocket() {
                 timestamp: event.timestamp ?? null,
               })
             } else if (event.event === 'feedback_recorded') {
-              next.set(svc, {
-                ...current,
-                feedbackOutcome: event.outcome ?? null,
-              })
+              // Only apply if the MR URL matches — prevents stale polling tasks
+              // from a previous run tainting tiles in a new run
+              if (!event.mr_url || event.mr_url === current.mrUrl) {
+                next.set(svc, {
+                  ...current,
+                  feedbackOutcome: event.outcome ?? null,
+                })
+              }
             } else if (event.event === 'mr_opened') {
               next.set(svc, {
                 ...current,
