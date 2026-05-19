@@ -62,6 +62,9 @@ export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
         'min-h-[100px]',
       ].join(' ')}
       aria-label={`${name}: ${state.status}`}
+      title={state.status === 'hit' && state.incidentId
+        ? `Pattern found — same as ${state.incidentId}${state.fileHit ? ` in ${state.fileHit}` : ''}. Confidence: ${state.confidence ? `${Math.round(state.confidence * 100)}%` : 'high'}.`
+        : undefined}
     >
       {/* Scanning ring */}
       {state.status === 'scanning' && (
@@ -113,6 +116,17 @@ export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
               <span className="font-mono text-[8px] text-ripple-subtle/60 uppercase tracking-wider">
                 eval {state.correctionIterations}/3
               </span>
+            )}
+            {state.status === 'hit' && state.mrUrl && (
+              <a
+                href={`https://jfr54188.apps.dynatrace.com/ui/apps/dynatrace.classic.distributed.tracing/ui/distributed-tracing?filter=service%3Aripple-fix-factory`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[8px] text-ripple-accent/60 hover:text-ripple-accent uppercase tracking-wider transition-colors"
+                title="View this fix's OTel trace in Dynatrace"
+              >
+                DT trace ↗
+              </a>
             )}
             {state.feedbackOutcome === 'merged' && (
               <span className="font-mono text-[8px] text-ripple-clean uppercase tracking-wider">

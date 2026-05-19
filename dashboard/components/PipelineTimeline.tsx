@@ -24,14 +24,21 @@ export default function PipelineTimeline({ timeline }: Props) {
   if (!startMs) return null
 
   const now = Date.now()
-  const totalMs = Math.max(
+
+  // Pipeline is complete when all known services have scanEnd set
+  const settledCount = Object.values(services).filter(s => s.scanEndMs !== null).length
+  const isComplete = settledCount >= ALL_SERVICES.length
+
+  // Freeze totalMs once complete — don't let it grow after the run finishes
+  const settledMax = Math.max(
     intelligenceEndMs ? intelligenceEndMs - startMs : 0,
     ...Object.values(services).map(s => (s.mrOpenedMs ?? s.scanEndMs ?? s.scanStartMs ?? startMs) - startMs),
-    now - startMs,
+    0,
   )
+  const totalMs = isComplete ? settledMax : Math.max(settledMax, now - startMs)
 
   function pct(ms: number | null | undefined, fallback = now): number {
-    if (ms == null) return (fallback - startMs!) / totalMs * 100
+    if (ms == null) return Math.min((fallback - startMs!) / totalMs * 100, 100)
     return Math.min(((ms - startMs!) / totalMs) * 100, 100)
   }
 
@@ -47,7 +54,7 @@ export default function PipelineTimeline({ timeline }: Props) {
           Pipeline Trace
           {intelDuration && (
             <span className="ml-3 text-ripple-text/40">
-              total {fmt(Math.min(now - startMs, totalMs))}
+              {isComplete ? `completed in ${fmt(settledMax)}` : `running ${fmt(now - startMs)}`}
             </span>
           )}
         </span>

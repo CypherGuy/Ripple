@@ -24,6 +24,8 @@ export interface ScanSummary {
   mrsOpened: number
   connected: boolean
   riskScore: number | null
+  pipelineStartMs: number | null
+  pipelineEndMs: number | null
 }
 
 export interface ServiceTiming {
@@ -48,6 +50,7 @@ export function useRippleSocket() {
   const [services, setServices] = useState<Map<string, ServiceState>>(new Map())
   const [summary, setSummary] = useState<ScanSummary>({
     scanned: 0, hits: 0, clean: 0, mrsOpened: 0, connected: false, riskScore: null,
+    pipelineStartMs: null, pipelineEndMs: null,
   })
   const [timeline, setTimeline] = useState<PipelineTimeline>({
     startMs: null, intelligenceEndMs: null, services: {},
@@ -95,6 +98,7 @@ export function useRippleSocket() {
             if (event.event === 'agent_started') {
               const nowMs = Date.now()
               next.set(svc, { ...current, status: 'scanning', timestamp: event.timestamp })
+              setSummary(s => ({ ...s, pipelineStartMs: s.pipelineStartMs ?? nowMs }))
               setTimeline(t => ({
                 ...t,
                 startMs: t.startMs ?? nowMs,
@@ -119,7 +123,11 @@ export function useRippleSocket() {
               })
               if (!settled.current.has(svc)) {
                 settled.current.add(svc)
-                setSummary(s => ({ ...s, scanned: s.scanned + 1, hits: s.hits + 1 }))
+                setSummary(s => {
+                  const newScanned = s.scanned + 1
+                  return { ...s, scanned: newScanned, hits: s.hits + 1,
+                    pipelineEndMs: newScanned >= 12 ? Date.now() : s.pipelineEndMs }
+                })
               }
               setTimeline(t => ({
                 ...t,
@@ -129,7 +137,11 @@ export function useRippleSocket() {
               next.set(svc, { ...current, status: 'clean', timestamp: event.timestamp })
               if (!settled.current.has(svc)) {
                 settled.current.add(svc)
-                setSummary(s => ({ ...s, scanned: s.scanned + 1, clean: s.clean + 1 }))
+                setSummary(s => {
+                  const newScanned = s.scanned + 1
+                  return { ...s, scanned: newScanned, clean: s.clean + 1,
+                    pipelineEndMs: newScanned >= 12 ? Date.now() : s.pipelineEndMs }
+                })
               }
               setTimeline(t => ({
                 ...t,
@@ -191,7 +203,7 @@ export function useRippleSocket() {
     settled.current.clear()
     settledMrUrls.current.clear()
     setServices(new Map())
-    setSummary(s => ({ ...s, scanned: 0, hits: 0, clean: 0, mrsOpened: 0, riskScore: null }))
+    setSummary(s => ({ ...s, scanned: 0, hits: 0, clean: 0, mrsOpened: 0, riskScore: null, pipelineStartMs: null, pipelineEndMs: null }))
     setTimeline({ startMs: null, intelligenceEndMs: null, services: {} })
   }
 

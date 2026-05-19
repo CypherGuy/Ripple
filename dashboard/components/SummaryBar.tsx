@@ -35,6 +35,20 @@ export default function SummaryBar({ summary, total }: Props) {
         <div className="h-8 w-px bg-white/5" aria-hidden="true" />
         <Stat value={summary.mrsOpened} label="MRs opened" color="text-ripple-accent" />
 
+        {/* Elapsed time */}
+        {summary.pipelineStartMs && (
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="font-mono text-2xl font-bold tabular-nums tracking-tight text-ripple-subtle">
+              {summary.pipelineEndMs
+                ? `${((summary.pipelineEndMs - summary.pipelineStartMs) / 1000).toFixed(1)}s`
+                : `${((Date.now() - summary.pipelineStartMs) / 1000).toFixed(0)}s`}
+            </span>
+            <span className="font-mono text-[9px] uppercase tracking-widest text-ripple-subtle">
+              {summary.pipelineEndMs ? 'completed in' : 'elapsed'}
+            </span>
+          </div>
+        )}
+
         {/* Connection indicator */}
         <div className="ml-auto flex items-center gap-1.5">
           <span

@@ -122,20 +122,22 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Trigger Demo button */}
+            {/* Trigger Demo button — primary action */}
             <div className="flex items-center gap-2">
               <button
                 onClick={triggerDemo}
                 disabled={triggering}
                 className={[
-                  'font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded border transition-all duration-150 cursor-pointer',
-                  'border-ripple-accent/60 text-ripple-accent hover:border-ripple-accent hover:bg-ripple-accent/10',
-                  'disabled:opacity-40 disabled:cursor-not-allowed',
-                  'focus:outline-none focus:ring-1 focus:ring-ripple-accent/40',
+                  'font-mono text-[10px] font-semibold uppercase tracking-widest px-4 py-1.5 rounded border transition-all duration-150 cursor-pointer',
+                  'border-ripple-accent bg-ripple-accent/20 text-ripple-accent',
+                  'hover:bg-ripple-accent/30 hover:border-ripple-accent',
+                  triggering ? '' : 'shadow-[0_0_12px_rgba(99,102,241,0.3)]',
+                  'disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none',
+                  'focus:outline-none focus:ring-2 focus:ring-ripple-accent/60',
                 ].join(' ')}
                 aria-label="Trigger demo pipeline run"
               >
-                {triggering ? 'Triggering…' : 'Trigger Demo'}
+                {triggering ? 'Triggering…' : '▶ Trigger Demo'}
               </button>
               {triggerResult && (
                 <span className="font-mono text-[9px] text-ripple-accent animate-slide-in">
