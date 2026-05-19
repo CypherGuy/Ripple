@@ -129,7 +129,7 @@ export default function PipelineTimeline({ timeline }: Props) {
                   ) : mrOpened ? (
                     <span className="text-blue-400">{fmt(mrOpened - (scanStart ?? startMs!))}</span>
                   ) : scanEnd ? (
-                    <span className={outcome === 'hit' ? 'text-ripple-hit' : 'text-ripple-clean'}>{fmt(scanEnd - (scanStart ?? startMs!))}</span>
+                    <span className={outcome === 'clean' ? 'text-ripple-clean' : 'text-ripple-scan'}>{fmt(scanEnd - (scanStart ?? startMs!))}</span>
                   ) : (
                     <span className="text-ripple-scan">…</span>
                   )}
