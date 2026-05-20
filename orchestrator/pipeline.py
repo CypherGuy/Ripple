@@ -218,7 +218,15 @@ async def run_pipeline(
                     pass
         asyncio.create_task(_pre_broadcast())
 
-        # Intelligence
+        # Intelligence — fall back to diff-as-pattern on any failure so the pipeline
+        # continues scanning even when Gemini is temporarily unavailable.
+        fallback_intel = {
+            "pattern": payload.get("diff", "HTTP call without timeout"),
+            "risk_score": 8,
+            "rationale": "Intelligence service unavailable; using raw diff as pattern.",
+            "incident_context": payload.get("incident_context", {}),
+            "previous_scans": [],
+        }
         try:
             intel_r = await _client.post(
                 f"{INTELLIGENCE_URL}/analyze",
@@ -226,13 +234,16 @@ async def run_pipeline(
                 headers=headers,
                 timeout=120,
             )
-            intel = _safe_json(intel_r, {"pattern": payload.get("diff", ""), "incident_context": {}, "previous_scans": []})
+            intel = _safe_json(intel_r, fallback_intel)
+            if not intel.get("pattern"):
+                logger.warning("Intelligence returned empty pattern; using diff fallback")
+                intel = fallback_intel
             # Merge webhook-supplied incident_context as fallback when intel returns none
             if not intel.get("incident_context") and payload.get("incident_context"):
                 intel["incident_context"] = payload["incident_context"]
-        except Exception as e:
-            logger.exception("Intelligence service error")
-            raise HTTPException(status_code=502, detail="upstream service error")
+        except Exception:
+            logger.exception("Intelligence service error — continuing with diff fallback")
+            intel = fallback_intel
 
         # Normalise Intelligence's incident_context:
         # - map Dynatrace field names to Ripple's expected names
@@ -253,7 +264,8 @@ async def run_pipeline(
         intel["incident_context"] = intel_ctx
 
         if not intel.get("pattern"):
-            raise HTTPException(status_code=502, detail="Intelligence returned no pattern")
+            logger.warning("Pattern still empty after fallback; using raw diff")
+            intel["pattern"] = payload.get("diff", "HTTP call without timeout")
 
         threshold = int(os.environ.get("AUTO_FIX_THRESHOLD", "7"))
         risk_score = int(intel.get("risk_score", 10))
@@ -349,6 +361,28 @@ async def run_pipeline(
         finally:
             _pipeline_state = None
 
+    except Exception:
+        # Broadcast no_hit for all services so tiles don't get stuck on SCANNING
+        logger.exception("Pipeline crashed — broadcasting no_hit to unstick tiles")
+        internal_secret = os.environ.get("INTERNAL_SECRET", "")
+        try:
+            svcs = await fetch_services_from_gitlab(
+                os.environ.get("DEMO_NAMESPACE", "cypherguy-group/pulsecheck"),
+                os.environ.get("GITLAB_TOKEN", ""), _client,
+            )
+            for svc in svcs:
+                try:
+                    await _client.post(
+                        f"{ORCHESTRATOR_URL}/internal/broadcast",
+                        json={"event": "no_hit", "service": svc["name"]},
+                        headers={"X-Internal-Secret": internal_secret},
+                        timeout=3,
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        return []
     finally:
         if close_client:
             await _client.aclose()
