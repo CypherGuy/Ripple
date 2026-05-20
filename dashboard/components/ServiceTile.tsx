@@ -57,6 +57,14 @@ const STATUS_CONFIG = {
     labelColor: 'text-ripple-subtle',
     glow: '',
   },
+  approving: {
+    border: 'border-ripple-accent/40',
+    bg: 'bg-ripple-card',
+    dot: 'bg-ripple-accent animate-pulse',
+    label: 'FIXING...',
+    labelColor: 'text-ripple-accent',
+    glow: 'shadow-[0_0_16px_rgba(99,102,241,0.2)]',
+  },
 } as const
 
 export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
@@ -205,6 +213,24 @@ export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
                 Skip
               </button>
             </div>
+          </div>
+        )}
+        {state.status === 'approving' && (
+          <div className="flex flex-col gap-1 mt-1">
+            {state.fileHit && (
+              <span className="font-mono text-[8px] text-ripple-subtle/70 uppercase tracking-wider truncate">
+                {state.fileHit.split('/').pop()}
+                {state.confidence !== null && ` · ${Math.round(state.confidence * 100)}%`}
+              </span>
+            )}
+            {state.riskScore !== null && (
+              <span className="font-mono text-[8px] text-ripple-accent/60 uppercase tracking-wider">
+                risk {state.riskScore}/10
+              </span>
+            )}
+            <span className="font-mono text-[8px] text-ripple-accent/70 uppercase tracking-wider animate-pulse">
+              Generating fix...
+            </span>
           </div>
         )}
         {state.status === 'skipped' && (

@@ -14,7 +14,7 @@ const ORCHESTRATOR_URL = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL
     : 'http://localhost:8000')
 
 export default function Dashboard() {
-  const { services, summary, timeline, reset, markServiceSkipped } = useRippleSocket()
+  const { services, summary, timeline, reset, markServiceSkipped, markServiceApproving } = useRippleSocket()
   const [closing, setClosing] = useState(false)
   const [closeResult, setCloseResult] = useState<string | null>(null)
   const [triggering, setTriggering] = useState(false)
@@ -41,6 +41,7 @@ export default function Dashboard() {
   }
 
   async function approveService(service: string) {
+    markServiceApproving(service)
     setApprovingServices(prev => new Set(prev).add(service))
     try {
       const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? ''

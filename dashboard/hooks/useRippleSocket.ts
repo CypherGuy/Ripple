@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-export type ServiceStatus = 'idle' | 'scanning' | 'hit' | 'clean' | 'requires_approval' | 'skipped'
+export type ServiceStatus = 'idle' | 'scanning' | 'hit' | 'clean' | 'requires_approval' | 'skipped' | 'approving'
 
 export interface ServiceState {
   status: ServiceStatus
@@ -230,5 +230,14 @@ export function useRippleSocket() {
     })
   }
 
-  return { services, summary, timeline, reset, markServiceSkipped }
+  function markServiceApproving(service: string) {
+    setServices(prev => {
+      const next = new Map(prev)
+      const existing = next.get(service)
+      if (existing) next.set(service, { ...existing, status: 'approving' })
+      return next
+    })
+  }
+
+  return { services, summary, timeline, reset, markServiceSkipped, markServiceApproving }
 }
