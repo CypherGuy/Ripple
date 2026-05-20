@@ -35,8 +35,8 @@ async def poll_mr_status(
     close_own = client is None
     poll_client = client if client is not None else httpx.AsyncClient()
     try:
-        for _ in range(max_polls):
-            if poll_interval > 0:
+        for i in range(max_polls):
+            if poll_interval > 0 and i > 0:
                 await asyncio.sleep(poll_interval)
             try:
                 r = await poll_client.get(
