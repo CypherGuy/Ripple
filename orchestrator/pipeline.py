@@ -321,7 +321,8 @@ async def run_pipeline(
                               "risk_score": risk_score, "pattern": intel.get("pattern", ""),
                               "file_path": hit.get("file_path", ""),
                               "confidence": hit.get("confidence", 0),
-                              "gitlab_namespace": hit.get("gitlab_namespace", svc)},
+                              "gitlab_namespace": hit.get("gitlab_namespace", svc),
+                              "approval_payload": {"hit": hit, "intel": intel, "trace_id": trace_id}},
                         headers={"X-Internal-Secret": internal_secret},
                         timeout=5,
                     )

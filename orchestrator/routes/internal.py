@@ -33,12 +33,25 @@ async def approve_service(
 
     body = await request.json()
     service = body.get("service", "")
-    pending = _pending_approvals.pop(service, None)
-    if pending is None:
-        raise HTTPException(status_code=404, detail=f"No pending approval for service: {service}")
+    hit = body.get("hit")
+    intel = body.get("intel")
+    trace_id = body.get("trace_id")
+
+    # If the dashboard didn't send the full context, fall back to in-memory state
+    if not (hit and intel and trace_id):
+        pending = _pending_approvals.pop(service, None)
+        if pending is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No pending approval for service: {service}. "
+                       "The orchestrator may have restarted. Re-run the pipeline.",
+            )
+        hit, intel, trace_id = pending["hit"], pending["intel"], pending["trace_id"]
+    else:
+        _pending_approvals.pop(service, None)
 
     async with httpx.AsyncClient() as client:
-        result = await fix_hit(pending["hit"], pending["intel"], pending["trace_id"], client)
+        result = await fix_hit(hit, intel, trace_id, client)
 
     return {"status": "accepted", "service": service, "result": result}
 

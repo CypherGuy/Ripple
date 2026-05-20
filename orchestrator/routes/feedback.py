@@ -13,6 +13,13 @@ class FeedbackPayload(BaseModel):
     reason: str = ""
 
 
+class SkipPayload(BaseModel):
+    service: str
+    pattern: str
+    file_path: str = ""
+    risk_score: int | None = None
+
+
 def get_pattern_for_mr(mr_url: str) -> str:
     """Look up the pattern from the stored outcome for this MR URL."""
     try:
@@ -46,3 +53,30 @@ async def submit_feedback(
         reason=payload.reason,
     )
     return {"recorded": True, "service": payload.service, "outcome": payload.outcome}
+
+
+@router.post("/admin/skip")
+async def skip_pending_approval(
+    payload: SkipPayload,
+    x_admin_secret: str | None = Header(default=None),
+):
+    """Record a scar when a user skips a pending approval on the dashboard.
+    The team explicitly chose not to fix this pattern in this service."""
+    expected = os.environ.get("ADMIN_SECRET", "")
+    if not expected or x_admin_secret != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    risk_note = f", risk={payload.risk_score}/10" if payload.risk_score is not None else ""
+    record_feedback(
+        service=payload.service,
+        mr_url=None,
+        outcome="rejected",
+        pattern=payload.pattern,
+        reason=f"User skipped on dashboard{risk_note}. File: {payload.file_path or 'n/a'}",
+    )
+
+    # Drop the pending approval state so a future approve call doesn't re-fire it
+    from orchestrator.pipeline import _pending_approvals
+    _pending_approvals.pop(payload.service, None)
+
+    return {"recorded": True, "service": payload.service, "outcome": "skipped"}

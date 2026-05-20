@@ -350,13 +350,32 @@ def test_pipeline_auto_fixes_when_risk_at_or_above_threshold():
     assert fix_called["n"] == 1
 
 
-def test_approve_endpoint_triggers_fix_for_pending_service(client):
-    """POST /internal/approve fires fix for a service that awaits approval."""
+def test_approve_endpoint_triggers_fix_with_inline_payload(client):
+    """POST /internal/approve fires fix when the dashboard sends the full hit context."""
+    import os
+    os.environ["ADMIN_SECRET"] = "test-admin-secret"
+    os.environ["AUTO_FIX_THRESHOLD"] = "7"
+
+    fake_hit = {"service": "ssl-monitor", "file_path": "m.py", "matching_lines": [], "confidence": 0.8}
+    fake_intel = {"pattern": "x", "incident_context": {}}
+
+    with patch("orchestrator.routes.internal.fix_hit", new_callable=AsyncMock) as mock_fix:
+        mock_fix.return_value = {"mr_url": None, "service": "ssl-monitor"}
+        r = client.post(
+            "/internal/approve",
+            json={"service": "ssl-monitor", "hit": fake_hit, "intel": fake_intel, "trace_id": "t"},
+            headers={"X-Admin-Secret": "test-admin-secret"},
+        )
+
+    assert r.status_code == 202
+    mock_fix.assert_called_once()
+
+
+def test_approve_endpoint_falls_back_to_pending_state(client):
+    """POST /internal/approve uses _pending_approvals when no payload provided."""
     import os
     import orchestrator.pipeline as pipeline_mod
-
-    os.environ["INTERNAL_SECRET"] = "test-secret"
-    os.environ["AUTO_FIX_THRESHOLD"] = "7"
+    os.environ["ADMIN_SECRET"] = "test-admin-secret"
 
     fake_hit = {"service": "ssl-monitor", "file_path": "m.py", "matching_lines": [], "confidence": 0.8}
     fake_intel = {"pattern": "x", "incident_context": {}}
@@ -367,7 +386,7 @@ def test_approve_endpoint_triggers_fix_for_pending_service(client):
         r = client.post(
             "/internal/approve",
             json={"service": "ssl-monitor"},
-            headers={"X-Internal-Secret": "test-secret"},
+            headers={"X-Admin-Secret": "test-admin-secret"},
         )
 
     assert r.status_code == 202
@@ -375,30 +394,29 @@ def test_approve_endpoint_triggers_fix_for_pending_service(client):
     assert "ssl-monitor" not in pipeline_mod._pending_approvals
 
 
-def test_approve_endpoint_returns_404_when_service_not_pending(client):
-    """POST /internal/approve returns 404 if the service is not awaiting approval."""
+def test_approve_endpoint_returns_404_when_no_payload_and_no_pending(client):
+    """POST /internal/approve returns 404 if neither payload nor pending state exists."""
     import os
     import orchestrator.pipeline as pipeline_mod
-
-    os.environ["INTERNAL_SECRET"] = "test-secret"
+    os.environ["ADMIN_SECRET"] = "test-admin-secret"
     pipeline_mod._pending_approvals.pop("nonexistent-svc", None)
 
     r = client.post(
         "/internal/approve",
         json={"service": "nonexistent-svc"},
-        headers={"X-Internal-Secret": "test-secret"},
+        headers={"X-Admin-Secret": "test-admin-secret"},
     )
     assert r.status_code == 404
 
 
-def test_approve_endpoint_requires_internal_secret(client):
-    """POST /internal/approve returns 403 without the correct secret."""
+def test_approve_endpoint_requires_admin_secret(client):
+    """POST /internal/approve returns 403 without the correct admin secret."""
     import os
-    os.environ["INTERNAL_SECRET"] = "test-secret"
+    os.environ["ADMIN_SECRET"] = "test-admin-secret"
 
     r = client.post(
         "/internal/approve",
         json={"service": "ssl-monitor"},
-        headers={"X-Internal-Secret": "wrong"},
+        headers={"X-Admin-Secret": "wrong"},
     )
     assert r.status_code == 403

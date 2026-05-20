@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-export type ServiceStatus = 'idle' | 'scanning' | 'hit' | 'clean' | 'requires_approval'
+export type ServiceStatus = 'idle' | 'scanning' | 'hit' | 'clean' | 'requires_approval' | 'skipped'
 
 export interface ServiceState {
   status: ServiceStatus
@@ -15,6 +15,7 @@ export interface ServiceState {
   correctionIterations: number | null
   incidentId: string | null
   feedbackOutcome: 'merged' | 'closed' | null
+  approvalPayload: unknown | null
 }
 
 export interface ScanSummary {
@@ -92,7 +93,7 @@ export function useRippleSocket() {
               status: 'idle' as ServiceStatus,
               mrUrl: null, fileHit: null, confidence: null, timestamp: null,
               riskScore: null, pattern: null, evaluatedOn: null, correctionIterations: null, incidentId: null,
-              feedbackOutcome: null,
+              feedbackOutcome: null, approvalPayload: null,
             }
 
             if (event.event === 'agent_started') {
@@ -120,6 +121,7 @@ export function useRippleSocket() {
                 correctionIterations: null,
                 incidentId: null,
                 feedbackOutcome: null,
+                approvalPayload: null,
               })
               if (!settled.current.has(svc)) {
                 settled.current.add(svc)
@@ -159,6 +161,7 @@ export function useRippleSocket() {
                 timestamp: event.timestamp ?? null,
                 fileHit: event.file_path ?? null,
                 confidence: event.confidence ?? null,
+                approvalPayload: event.approval_payload ?? null,
               })
             } else if (event.event === 'feedback_recorded') {
               // Only apply if the MR URL matches — prevents stale polling tasks
@@ -209,14 +212,14 @@ export function useRippleSocket() {
     setTimeline({ startMs: null, intelligenceEndMs: null, services: {} })
   }
 
-  function dismissApproval(service: string) {
+  function markServiceSkipped(service: string) {
     setServices(prev => {
       const next = new Map(prev)
       const existing = next.get(service)
-      if (existing) next.set(service, { ...existing, status: 'clean' })
+      if (existing) next.set(service, { ...existing, status: 'skipped' })
       return next
     })
   }
 
-  return { services, summary, timeline, reset, dismissApproval }
+  return { services, summary, timeline, reset, markServiceSkipped }
 }

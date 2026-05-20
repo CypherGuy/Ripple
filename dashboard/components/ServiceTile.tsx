@@ -49,6 +49,14 @@ const STATUS_CONFIG = {
     labelColor: 'text-ripple-accent',
     glow: 'shadow-[0_0_16px_rgba(99,102,241,0.3)]',
   },
+  skipped: {
+    border: 'border-white/10',
+    bg: 'bg-ripple-card/60',
+    dot: 'bg-ripple-subtle',
+    label: 'SKIPPED',
+    labelColor: 'text-ripple-subtle',
+    glow: '',
+  },
 } as const
 
 export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
@@ -197,6 +205,24 @@ export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
                 Skip
               </button>
             </div>
+          </div>
+        )}
+        {state.status === 'skipped' && (
+          <div className="flex flex-col gap-1 mt-1 opacity-70">
+            {state.fileHit && (
+              <span className="font-mono text-[8px] text-ripple-subtle/70 uppercase tracking-wider truncate line-through">
+                {state.fileHit.split('/').pop()}
+                {state.confidence !== null && ` · ${Math.round(state.confidence * 100)}%`}
+              </span>
+            )}
+            {state.riskScore !== null && (
+              <span className="font-mono text-[8px] text-ripple-subtle/70 uppercase tracking-wider">
+                risk {state.riskScore}/10
+              </span>
+            )}
+            <span className="font-mono text-[8px] text-ripple-subtle uppercase tracking-wider">
+              Scar recorded — won&apos;t auto-fix next run
+            </span>
           </div>
         )}
       </div>

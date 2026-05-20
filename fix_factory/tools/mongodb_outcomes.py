@@ -36,7 +36,7 @@ def _get_scars_col():
 
 def record_feedback(
     service: str,
-    mr_url: str,
+    mr_url: str | None,
     outcome: str,
     pattern: str,
     reason: str,

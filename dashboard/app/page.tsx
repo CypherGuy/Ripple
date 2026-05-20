@@ -14,7 +14,7 @@ const ORCHESTRATOR_URL = process.env.NEXT_PUBLIC_ORCHESTRATOR_URL
     : 'http://localhost:8000')
 
 export default function Dashboard() {
-  const { services, summary, timeline, reset, dismissApproval } = useRippleSocket()
+  const { services, summary, timeline, reset, markServiceSkipped } = useRippleSocket()
   const [closing, setClosing] = useState(false)
   const [closeResult, setCloseResult] = useState<string | null>(null)
   const [triggering, setTriggering] = useState(false)
@@ -44,18 +44,48 @@ export default function Dashboard() {
     setApprovingServices(prev => new Set(prev).add(service))
     try {
       const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? ''
-      await fetch(`${ORCHESTRATOR_URL}/internal/approve`, {
+      const tile = services.get(service)
+      const payload = tile?.approvalPayload ?? {}
+      const r = await fetch(`${ORCHESTRATOR_URL}/internal/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': adminSecret },
-        body: JSON.stringify({ service }),
+        body: JSON.stringify({ service, ...(typeof payload === 'object' && payload ? payload : {}) }),
       })
+      if (!r.ok) {
+        const text = await r.text().catch(() => '')
+        console.error(`Approve failed ${r.status}: ${text}`)
+        alert(`Approve failed (${r.status}): ${text || 'see console'}`)
+      }
+    } catch (e) {
+      console.error('Approve fetch error', e)
+      alert(`Approve fetch error: ${String(e)}`)
     } finally {
       setApprovingServices(prev => { const s = new Set(prev); s.delete(service); return s })
     }
   }
 
-  function skipService(service: string) {
-    dismissApproval(service)
+  async function skipService(service: string) {
+    const tile = services.get(service)
+    const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? ''
+    markServiceSkipped(service)
+    try {
+      const r = await fetch(`${ORCHESTRATOR_URL}/admin/skip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Secret': adminSecret },
+        body: JSON.stringify({
+          service,
+          pattern: tile?.pattern ?? '',
+          file_path: tile?.fileHit ?? '',
+          risk_score: tile?.riskScore ?? null,
+        }),
+      })
+      if (!r.ok) {
+        const text = await r.text().catch(() => '')
+        console.error(`Skip failed ${r.status}: ${text}`)
+      }
+    } catch (e) {
+      console.error('Skip fetch error', e)
+    }
   }
 
   async function closeAllMrs() {

@@ -15,4 +15,5 @@ docs/
 dashboard/.next/
 .vscode/
 .incident_context.json
-.worktrees/
+.worktrees/*.log
+dynatrace-managed-mcp.log
