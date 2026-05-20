@@ -114,11 +114,15 @@ def scan_service(
         if _gemini_fn is None:
             # ADK path with 25s hard cap. If ADK finds hits, return immediately.
             # If ADK times out or returns 0, fall through to direct Gemini scan.
+            # Use executor without `with` — `with` calls shutdown(wait=True) on exit,
+            # which blocks until the ADK thread finishes and defeats the timeout.
+            ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
             try:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                    hits = ex.submit(call_scanner_adk, service, pattern).result(timeout=25)
+                hits = ex.submit(call_scanner_adk, service, pattern).result(timeout=25)
             except Exception:
                 hits = []
+            finally:
+                ex.shutdown(wait=False, cancel_futures=True)
             if hits:
                 span.set_attribute("files.count", -1)
                 span.set_attribute("hits.count", len(hits))

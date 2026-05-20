@@ -317,8 +317,10 @@ async def run_pipeline(
                     seen[svc] = h
             hits = list(seen.values())
         except Exception:
-            _pipeline_state = None
-            return []
+            # Scanner HTTP call failed but hit callbacks may still arrive via
+            # /internal/scan-event — keep _pipeline_state alive so fix_hit fires.
+            logger.exception("Scanner call failed; keeping pipeline state for callbacks")
+            hits = []
 
         if risk_score < threshold:
             _pipeline_state = None
