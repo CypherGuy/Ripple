@@ -119,7 +119,7 @@ export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
             )}
             {state.status === 'hit' && state.mrUrl && (
               <a
-                href={`https://jfr54188.apps.dynatrace.com/ui/apps/dynatrace.distributed-traces?serviceId=SERVICE-DE3D522AFCFC3BF2`}
+                href={`https://jfr54188.live.dynatrace.com/ui/distributed-tracing`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-mono text-[8px] text-ripple-accent/60 hover:text-ripple-accent uppercase tracking-wider transition-colors"
