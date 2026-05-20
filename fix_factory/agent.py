@@ -166,7 +166,7 @@ def run_with_correction(
     hit: dict,
     traces: list[dict],
     precedents: list[dict],
-    max_iterations: int = 3,
+    max_iterations: int = 2,
     _fix_fn=None,
     _eval_fn=None,
     _mr_fn=None,

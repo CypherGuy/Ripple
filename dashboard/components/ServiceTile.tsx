@@ -122,7 +122,7 @@ export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
             )}
             {state.correctionIterations !== null && (
               <span className="font-mono text-[8px] text-ripple-subtle/60 uppercase tracking-wider">
-                eval {state.correctionIterations}/3
+                eval {state.correctionIterations}/2
               </span>
             )}
             {state.status === 'hit' && state.mrUrl && (

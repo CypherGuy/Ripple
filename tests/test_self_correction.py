@@ -141,13 +141,13 @@ def test_correction_passes_on_first_iteration():
     assert result["failure_reason"] is None
 
 
-def test_correction_fails_twice_then_passes():
+def test_correction_fails_once_then_passes():
     from fix_factory.agent import run_with_correction
 
     call_count = {"n": 0}
     def flaky_eval(hit, patch, _gemini_fn=None):
         call_count["n"] += 1
-        if call_count["n"] < 3:
+        if call_count["n"] < 2:
             return {"passed": False, "rationale": "Not quite right."}
         return {"passed": True, "rationale": "Now correct."}
 
@@ -159,11 +159,11 @@ def test_correction_fails_twice_then_passes():
         _store_fn=lambda d: None,
     )
     assert result["self_correction_passed"] is True
-    assert result["correction_iterations"] == 3
+    assert result["correction_iterations"] == 2
     assert result["mr_url"] == MOCK_MR_URL
 
 
-def test_correction_fails_all_three_iterations():
+def test_correction_fails_all_iterations():
     from fix_factory.agent import run_with_correction
     result = run_with_correction(
         HIT, [], [],
@@ -173,7 +173,7 @@ def test_correction_fails_all_three_iterations():
         _store_fn=lambda d: None,
     )
     assert result["self_correction_passed"] is False
-    assert result["correction_iterations"] == 3
+    assert result["correction_iterations"] == 2
     assert result["mr_url"] is None
     assert result["failure_reason"] is not None
 
