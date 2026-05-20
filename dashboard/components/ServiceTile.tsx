@@ -127,7 +127,7 @@ export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
             )}
             {state.status === 'hit' && state.mrUrl && (
               <a
-                href="https://jfr54188.apps.dynatrace.com/ui/apps/dynatrace.notebooks/notebook/3bc94ef3-8997-4973-b13a-0d88ef138aac"
+                href="https://jfr54188.apps.dynatrace.com/ui/apps/dynatrace.notebooks/notebook/70f2b95b-389a-4ef8-a56d-e1e6b674ae45"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-mono text-[8px] text-ripple-accent/60 hover:text-ripple-accent uppercase tracking-wider transition-colors"
