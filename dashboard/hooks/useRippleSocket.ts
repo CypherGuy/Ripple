@@ -128,7 +128,7 @@ export function useRippleSocket() {
                 setSummary(s => {
                   const newScanned = s.scanned + 1
                   return { ...s, scanned: newScanned, hits: s.hits + 1,
-                    pipelineEndMs: newScanned >= 12 ? Date.now() : s.pipelineEndMs }
+                    pipelineEndMs: s.pipelineEndMs }
                 })
               }
               setTimeline(t => ({
@@ -142,7 +142,7 @@ export function useRippleSocket() {
                 setSummary(s => {
                   const newScanned = s.scanned + 1
                   return { ...s, scanned: newScanned, clean: s.clean + 1,
-                    pipelineEndMs: newScanned >= 12 ? Date.now() : s.pipelineEndMs }
+                    pipelineEndMs: s.pipelineEndMs }
                 })
               }
               setTimeline(t => ({
@@ -187,7 +187,15 @@ export function useRippleSocket() {
               }))
               if (event.mr_url && !settledMrUrls.current.has(event.mr_url)) {
                 settledMrUrls.current.add(event.mr_url)
-                setSummary(s => ({ ...s, mrsOpened: s.mrsOpened + 1 }))
+                setSummary(s => {
+                  const newMrsOpened = s.mrsOpened + 1
+                  const allDone = s.scanned >= 12 && newMrsOpened >= s.hits
+                  return {
+                    ...s,
+                    mrsOpened: newMrsOpened,
+                    pipelineEndMs: allDone ? Date.now() : s.pipelineEndMs,
+                  }
+                })
               }
             }
 
