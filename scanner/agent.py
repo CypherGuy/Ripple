@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import logging
 import os
@@ -111,11 +112,11 @@ def scan_service(
         span.set_attribute("service.name", service.get("name", ""))
 
         if _gemini_fn is None:
-            # ADK path: LlmAgent with GitLab FunctionTool decides which files to fetch.
-            # If ADK returns 0 hits (agent may have skipped fetching files), fall through
-            # to the direct Gemini scan as a verification step — never silently return clean.
+            # ADK path with 25s hard cap. If ADK finds hits, return immediately.
+            # If ADK times out or returns 0, fall through to direct Gemini scan.
             try:
-                hits = call_scanner_adk(service, pattern)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                    hits = ex.submit(call_scanner_adk, service, pattern).result(timeout=25)
             except Exception:
                 hits = []
             if hits:
@@ -123,7 +124,6 @@ def scan_service(
                 span.set_attribute("hits.count", len(hits))
                 span.set_attribute("hit.found", True)
                 return hits
-            # ADK returned 0 — verify with direct Gemini scan before declaring clean
             _gemini_fn = _default_gemini
 
         token = os.environ.get("GITLAB_TOKEN", "")
