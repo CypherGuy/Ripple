@@ -58,7 +58,8 @@ def call_scanner_adk(service: dict, pattern: str) -> list[dict]:
         model="gemini-2.5-flash",
         instruction=(
             "You are a code scanner hunting for dangerous patterns in a GitLab repository. "
-            "A GitLab file-reading tool is available — use it to fetch the source files, then search for the pattern. "
+            "You MUST call the file-reading tool first to fetch the source files before you can answer. "
+            "Do not respond without calling the tool. "
             "IMPORTANT: Match the semantic risk, not the exact wording. "
             "For HTTP timeout patterns: flag ANY HTTP call (requests.get, requests.post, requests.put, "
             "requests.delete, httpx.get, httpx.post, httpx.put, urllib.request.urlopen, etc.) "
@@ -110,16 +111,20 @@ def scan_service(
         span.set_attribute("service.name", service.get("name", ""))
 
         if _gemini_fn is None:
-            # ADK path: LlmAgent with GitLab FunctionTool decides which files to fetch
-            # Falls back to non-ADK path if ADK fails so we never silently return clean
+            # ADK path: LlmAgent with GitLab FunctionTool decides which files to fetch.
+            # If ADK returns 0 hits (agent may have skipped fetching files), fall through
+            # to the direct Gemini scan as a verification step — never silently return clean.
             try:
                 hits = call_scanner_adk(service, pattern)
+            except Exception:
+                hits = []
+            if hits:
                 span.set_attribute("files.count", -1)
                 span.set_attribute("hits.count", len(hits))
-                span.set_attribute("hit.found", len(hits) > 0)
+                span.set_attribute("hit.found", True)
                 return hits
-            except Exception:
-                _gemini_fn = _default_gemini  # fall through to non-ADK path
+            # ADK returned 0 — verify with direct Gemini scan before declaring clean
+            _gemini_fn = _default_gemini
 
         token = os.environ.get("GITLAB_TOKEN", "")
         files = read_service_files(service["gitlab_namespace"], token, _files_override=_files_override)
