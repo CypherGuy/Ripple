@@ -65,8 +65,8 @@ def call_evaluator_adk(hit: dict, patch: str) -> dict:
         model="gemini-2.5-flash",
         instruction=(
             "You are a senior engineer evaluating whether a code fix prevents a production incident. "
-            "A Dynatrace trace tool is available — use it if you need to validate the fix against "
-            "the actual incident traces. "
+            "You MUST call the Dynatrace trace tool to fetch the incident traces before deciding. "
+            "Do not respond without calling the tool first. "
             "Return a JSON object with exactly: "
             "passed (bool), rationale (one sentence explaining why). "
             "No markdown, no extra fields."
@@ -122,8 +122,14 @@ def evaluate_fix(hit: dict, patch: str, _gemini_fn=None) -> dict:
     ctx = hit.get("incident_context", {})
 
     if _gemini_fn is None:
-        # ADK path: LlmAgent with Dynatrace FunctionTool for trace-grounded evaluation
-        return call_evaluator_adk(hit, patch)
+        # ADK path: LlmAgent with Dynatrace FunctionTool for trace-grounded evaluation.
+        # Fall back to direct Gemini on any ADK failure (e.g. 503) so iterations are
+        # not wasted — we always get a usable evaluation result.
+        try:
+            return call_evaluator_adk(hit, patch)
+        except Exception:
+            logger.exception("call_evaluator_adk failed; falling back to direct Gemini")
+            _gemini_fn = _default_gemini
     lines = hit.get("matching_lines", [])
 
     if _root_cause_missing(ctx):
