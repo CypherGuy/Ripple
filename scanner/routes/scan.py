@@ -38,12 +38,18 @@ async def scan(payload: ScanPayload):
                 "timestamp": _ts(),
             })
 
-            hits = await asyncio.to_thread(
-                scan_service,
-                svc.model_dump(),
-                payload.pattern,
-                payload.incident_context,
-            )
+            try:
+                hits = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        scan_service,
+                        svc.model_dump(),
+                        payload.pattern,
+                        payload.incident_context,
+                    ),
+                    timeout=90,
+                )
+            except asyncio.TimeoutError:
+                hits = []
             tagged = [{"service": svc.name, **h} for h in hits]
 
             if tagged:
