@@ -18,6 +18,9 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+if os.environ.get("GEMINI_API_KEY") and not os.environ.get("GOOGLE_API_KEY"):
+    os.environ["GOOGLE_API_KEY"] = os.environ["GEMINI_API_KEY"]
+
 
 def _gemini_client():
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()

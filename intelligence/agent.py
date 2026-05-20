@@ -23,6 +23,13 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+# ADK LlmAgent resolves the model via GOOGLE_API_KEY (AI Studio) or falls back to
+# Vertex AI via Application Default Credentials. On Cloud Run the ADC is always
+# present, so without this bridge the ADK silently routes to Vertex AI where
+# gemini-2.5-flash may not be enabled, causing 503 errors.
+if os.environ.get("GEMINI_API_KEY") and not os.environ.get("GOOGLE_API_KEY"):
+    os.environ["GOOGLE_API_KEY"] = os.environ["GEMINI_API_KEY"]
+
 
 def _gemini_client():
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
