@@ -13,7 +13,7 @@ from opentelemetry import trace
 from scanner.tools.gitlab import read_service_files
 
 try:
-    from otel_setup import setup_tracer
+    from shared.otel_setup import setup_tracer
     _tracer = setup_tracer("scanner")
 except Exception:
     _tracer = trace.get_tracer("ripple.scanner")

@@ -16,7 +16,7 @@ from intelligence.constants import (
 )
 
 try:
-    from otel_setup import setup_tracer
+    from shared.otel_setup import setup_tracer
     _tracer = setup_tracer("intelligence")
 except Exception:
     _tracer = trace.get_tracer("ripple.intelligence")

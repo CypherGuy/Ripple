@@ -11,7 +11,7 @@ from google.genai import types as genai_types
 from opentelemetry import trace
 
 try:
-    from otel_setup import setup_tracer
+    from shared.otel_setup import setup_tracer
     _tracer = setup_tracer("fix-factory")
 except Exception:
     _tracer = trace.get_tracer("ripple.fix-factory")

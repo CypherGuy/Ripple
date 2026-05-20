@@ -46,7 +46,7 @@ SERVICES = {
 
 
 def build(svc: str, image: str):
-    dockerfile = f"Dockerfile.{svc}" if svc != "dashboard" else "dashboard/Dockerfile"
+    dockerfile = f"docker/Dockerfile.{svc}" if svc != "dashboard" else "dashboard/Dockerfile"
     context = "." if svc != "dashboard" else "dashboard/"
     docker_args = ["build", "-f", dockerfile, "-t", image]
     if svc == "dashboard":
