@@ -175,6 +175,7 @@ export function useRippleSocket() {
             } else if (event.event === 'mr_opened') {
               next.set(svc, {
                 ...current,
+                status: 'hit',
                 mrUrl: event.mr_url,
                 evaluatedOn: event.evaluated_on ?? null,
                 correctionIterations: event.correction_iterations ?? null,
