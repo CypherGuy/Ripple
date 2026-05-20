@@ -209,5 +209,14 @@ export function useRippleSocket() {
     setTimeline({ startMs: null, intelligenceEndMs: null, services: {} })
   }
 
-  return { services, summary, timeline, reset }
+  function dismissApproval(service: string) {
+    setServices(prev => {
+      const next = new Map(prev)
+      const existing = next.get(service)
+      if (existing) next.set(service, { ...existing, status: 'clean' })
+      return next
+    })
+  }
+
+  return { services, summary, timeline, reset, dismissApproval }
 }

@@ -25,10 +25,10 @@ async def internal_broadcast(
 @router.post("/internal/approve", status_code=202)
 async def approve_service(
     request: Request,
-    x_internal_secret: str | None = Header(default=None),
+    x_admin_secret: str | None = Header(default=None),
 ):
-    expected = os.environ.get("INTERNAL_SECRET", "")
-    if not expected or x_internal_secret != expected:
+    expected = os.environ.get("ADMIN_SECRET", "")
+    if not expected or x_admin_secret != expected:
         raise HTTPException(status_code=403, detail="Forbidden")
 
     body = await request.json()
