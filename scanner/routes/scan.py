@@ -27,11 +27,11 @@ def _ts() -> str:
 
 @router.post("/scan")
 async def scan(payload: ScanPayload):
-    # Limit concurrent Gemini calls to avoid rate limiting
-    semaphore = asyncio.Semaphore(5)
-
+    # All 12 services scan simultaneously — semaphore removed.
+    # Each service has its own 60s timeout, so the total pipeline time
+    # is bounded by the slowest single service, not slowest * batches.
     async def scan_one(svc: ServiceEntry) -> list[dict]:
-        async with semaphore:
+        if True:
             emit_event(payload.callback_url, {
                 "event": "agent_started",
                 "service": svc.name,
@@ -46,7 +46,7 @@ async def scan(payload: ScanPayload):
                         payload.pattern,
                         payload.incident_context,
                     ),
-                    timeout=90,
+                    timeout=60,
                 )
             except asyncio.TimeoutError:
                 hits = []
