@@ -210,11 +210,13 @@ export function useRippleSocket() {
                 settled.current.add(svc);
                 setSummary((s) => {
                   const newScanned = s.scanned + 1;
+                  const newClean = s.clean + 1;
+                  const allDone = newScanned >= 12 && s.mrsOpened + newClean >= newScanned;
                   return {
                     ...s,
                     scanned: newScanned,
-                    clean: s.clean + 1,
-                    pipelineEndMs: s.pipelineEndMs,
+                    clean: newClean,
+                    pipelineEndMs: allDone && !s.pipelineEndMs ? Date.now() : s.pipelineEndMs,
                   };
                 });
               }
@@ -288,11 +290,11 @@ export function useRippleSocket() {
                 settledMrUrls.current.add(event.mr_url);
                 setSummary((s) => {
                   const newMrsOpened = s.mrsOpened + 1;
-                  const allDone = s.scanned >= 12 && newMrsOpened >= s.hits;
+                  const allDone = s.scanned >= 12 && newMrsOpened + s.clean >= s.scanned;
                   return {
                     ...s,
                     mrsOpened: newMrsOpened,
-                    pipelineEndMs: allDone ? Date.now() : s.pipelineEndMs,
+                    pipelineEndMs: allDone && !s.pipelineEndMs ? Date.now() : s.pipelineEndMs,
                   };
                 });
               }

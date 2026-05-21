@@ -30,7 +30,7 @@ export default function SummaryBar({ summary, total }: Props) {
   const progress = total > 0 ? (summary.scanned / total) * 100 : 0
   const elapsedMs = summary.pipelineEndMs
     ? summary.pipelineEndMs - summary.pipelineStartMs!
-    : summary.pipelineStartMs ? tick - summary.pipelineStartMs : null
+    : summary.pipelineStartMs ? Math.max(0, tick - summary.pipelineStartMs) : null
 
   return (
     <div className="flex flex-col gap-3">
