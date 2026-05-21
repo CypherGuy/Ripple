@@ -132,7 +132,7 @@ def evaluate_fix(hit: dict, patch: str, _gemini_fn=None) -> dict:
         # so iterations are never wasted waiting for a hung ADK call.
         ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         try:
-            result = ex.submit(call_evaluator_adk, hit, patch).result(timeout=25)
+            result = ex.submit(call_evaluator_adk, hit, patch).result(timeout=10)
             return result
         except Exception:
             logger.warning("call_evaluator_adk timed out or failed; falling back to direct Gemini")

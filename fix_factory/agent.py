@@ -130,7 +130,7 @@ def generate_fix(
         ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         try:
             old_line, new_line, explanation = ex.submit(
-                call_fix_adk, hit, traces).result(timeout=25)
+                call_fix_adk, hit, traces).result(timeout=10)
         except Exception:
             old_line, new_line, explanation = "", "", ""
         finally:
