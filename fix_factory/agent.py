@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import logging
 import os
@@ -125,10 +126,20 @@ def generate_fix(
     lines = hit.get("matching_lines", [])
 
     if _gemini_fn is None:
-        # ADK path: LlmAgent with GitLab history FunctionTool
-        old_line, new_line, explanation = call_fix_adk(hit, traces)
-        patch = f"-{old_line}\n+{new_line}" if old_line and new_line else ""
-        return {"old_line": old_line, "new_line": new_line, "patch": patch, "fix_explanation": explanation}
+        # ADK path with 25s hard cap. Falls back to direct Gemini on timeout/error.
+        ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            old_line, new_line, explanation = ex.submit(
+                call_fix_adk, hit, traces).result(timeout=25)
+        except Exception:
+            old_line, new_line, explanation = "", "", ""
+        finally:
+            ex.shutdown(wait=False, cancel_futures=True)
+
+        if old_line and new_line:
+            patch = f"-{old_line}\n+{new_line}"
+            return {"old_line": old_line, "new_line": new_line, "patch": patch, "fix_explanation": explanation}
+        _gemini_fn = _default_gemini
     history = hit.get("per_service_history", [])
 
     prompt = f"""You are a senior engineer generating a targeted code fix.

@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import logging
 import os
@@ -127,15 +128,17 @@ def evaluate_fix(hit: dict, patch: str, _gemini_fn=None) -> dict:
     ctx = hit.get("incident_context", {})
 
     if _gemini_fn is None:
-        # ADK path: LlmAgent with Dynatrace FunctionTool for trace-grounded evaluation.
-        # Fall back to direct Gemini on any ADK failure (e.g. 503) so iterations are
-        # not wasted - we always get a usable evaluation result.
+        # ADK path with 25s hard cap. Falls back to direct Gemini on timeout/error
+        # so iterations are never wasted waiting for a hung ADK call.
+        ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         try:
-            return call_evaluator_adk(hit, patch)
+            result = ex.submit(call_evaluator_adk, hit, patch).result(timeout=25)
+            return result
         except Exception:
-            logger.exception(
-                "call_evaluator_adk failed; falling back to direct Gemini")
-            _gemini_fn = _default_gemini
+            logger.warning("call_evaluator_adk timed out or failed; falling back to direct Gemini")
+        finally:
+            ex.shutdown(wait=False, cancel_futures=True)
+        _gemini_fn = _default_gemini
     lines = hit.get("matching_lines", [])
 
     if _root_cause_missing(ctx):

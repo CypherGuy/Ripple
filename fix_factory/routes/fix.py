@@ -1,3 +1,4 @@
+import asyncio
 import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -53,4 +54,8 @@ async def fix(payload: FixPayload):
 
     hit = payload.model_dump()
     hit["gitlab_namespace"] = namespace
-    return run_with_correction(hit, traces, precedents)
+    # run_with_correction is synchronous (ADK, GitLab API calls). Running it
+    # directly in an async endpoint blocks the event loop, serialising all
+    # concurrent /fix requests. to_thread moves it off the event loop so all
+    # 8 services process in parallel.
+    return await asyncio.to_thread(run_with_correction, hit, traces, precedents)

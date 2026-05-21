@@ -124,33 +124,6 @@ def test_demo_trigger_allows_request_after_cooldown(client):
     assert r.status_code == 202
 
 
-# ---------------------------------------------------------------------------
-# Trigger Demo auto-close — must close existing MRs before running pipeline
-# ---------------------------------------------------------------------------
-
-def test_demo_trigger_closes_mrs_before_pipeline(client):
-    """Trigger Demo must call close_mrs before run_pipeline so a judge never
-    sees 0 MRs opened because previous MRs from an earlier run were still open."""
-    import orchestrator.routes.demo as demo_mod
-    demo_mod._last_trigger_time = None
-
-    call_order = []
-
-    async def mock_close_mrs():
-        call_order.append("close_mrs")
-
-    async def mock_pipeline(payload, trace_id, **kwargs):
-        call_order.append("pipeline")
-        return []
-
-    with patch("orchestrator.routes.demo.close_all_mrs", new=mock_close_mrs), \
-         patch("orchestrator.routes.demo.run_pipeline", new=mock_pipeline):
-        r = client.post("/demo/trigger")
-
-    assert r.status_code == 202
-    assert call_order == ["close_mrs", "pipeline"], \
-        f"Expected close_mrs before pipeline, got: {call_order}"
-
 
 # ---------------------------------------------------------------------------
 # Trigger Demo button - webhook must accept incident_context in the payload

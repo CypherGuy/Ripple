@@ -36,7 +36,9 @@ def test_analyze_returns_pattern_and_risk_score(client):
                 "risk_rationale": "Matches DT-4821 - 47-minute outage.",
                 "incident_context": DT4821_INCIDENTS[0],
                 "previous_scans": [],
-            }):
+            }), \
+            patch("intelligence.routes.analyze.find_similar_wins", return_value=[]), \
+            patch("intelligence.routes.analyze.find_similar_scars", return_value=[]):
         r = client.post("/analyze", json={
             "pr_id": "12345",
             "repo": "org/payment-service",
