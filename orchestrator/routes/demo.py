@@ -36,7 +36,6 @@ async def trigger_demo():
             detail=f"Demo cooldown active. Try again in {remaining}s.",
         )
     _last_trigger_time = now
-    await close_all_mrs()
     trace_id = str(uuid.uuid4())
     fix_results = await run_pipeline(_DEMO_PAYLOAD.copy(), trace_id)
     return {"status": "accepted", "pr_id": _DEMO_PAYLOAD["pr_id"], "fix_results": fix_results}
