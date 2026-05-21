@@ -295,7 +295,7 @@ def test_extract_pattern_still_accepts_gemini_fn_override():
 def test_call_gemini_adk_prompt_does_not_include_preloaded_incidents():
     """The ADK agent prompt must NOT contain pre-fetched incidents.
     The agent should call the FunctionTool to fetch them itself - that is
-    genuine agentic tool use. If incidents are pre-embedded in the prompt,
+     agentic tool use. If incidents are pre-embedded in the prompt,
     the tool is never needed and the ADK integration is decorative."""
     from intelligence.agent import call_gemini_adk
     from unittest.mock import patch, MagicMock
@@ -330,7 +330,7 @@ def test_call_gemini_adk_prompt_does_not_include_preloaded_incidents():
 def test_adk_instruction_does_not_explicitly_direct_tool_call():
     """The LlmAgent instruction must not say 'call the tool' or 'use the tool'.
     It should mention the tool is available and let the model decide.
-    Genuine agentic tool use requires the model to reason about whether to invoke it."""
+     agentic tool use requires the model to reason about whether to invoke it."""
     from intelligence.agent import call_gemini_adk
     from unittest.mock import patch, MagicMock
 

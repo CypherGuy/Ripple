@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # ADK LlmAgent resolves the model via GOOGLE_API_KEY (AI Studio) or falls back to
 # Vertex AI via Application Default Credentials. On Cloud Run the ADC is always
 # present, so without this bridge the ADK silently routes to Vertex AI where
-# gemini-2.5-flash may not be enabled, causing 503 errors.
+# gemini-3-flash-preview may not be enabled, causing 503 errors.
 if os.environ.get("GEMINI_API_KEY") and not os.environ.get("GOOGLE_API_KEY"):
     os.environ["GOOGLE_API_KEY"] = os.environ["GEMINI_API_KEY"]
 
@@ -41,7 +41,7 @@ def _gemini_client():
 def call_gemini(prompt: str) -> tuple[str, int, str]:
     client = _gemini_client()
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3-flash-preview",
         contents=prompt,
     )
     text = response.text.strip()
@@ -67,14 +67,14 @@ def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
     """Run pattern extraction via an ADK LlmAgent with a Dynatrace FunctionTool.
 
     The prompt contains only the raw diff. The agent decides whether to call
-    _dt_fetch_incidents to retrieve Dynatrace incident history - this is genuine
+    _dt_fetch_incidents to retrieve Dynatrace incident history - this is 
     agentic tool use, not decorative. If the diff looks dangerous, the agent calls
     the tool; the tool queries the Dynatrace MCP and returns real incident records
     which the agent uses to ground its risk score and rationale.
     """
     agent = LlmAgent(
         name="ripple_pattern_extractor",
-        model="gemini-2.5-flash",
+        model="gemini-3-flash-preview",
         instruction=(
             "You are a code review expert that extracts dangerous semantic patterns "
             "from PR diffs, grounded in real production incident history. "
@@ -106,7 +106,7 @@ def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
     dt_queried = False
 
     with _tracer.start_as_current_span("ripple.intelligence.adk_run") as span:
-        span.set_attribute("model", "gemini-2.5-flash")
+        span.set_attribute("model", "gemini-3-flash-preview")
         span.set_attribute("service", "intelligence")
 
         for event in runner.run(user_id="system", session_id=str(uuid.uuid4()), new_message=message):
@@ -178,7 +178,7 @@ def extract_pattern(
 
     if _gemini_fn is call_gemini_adk:
         # ADK path: send only the raw diff. The LlmAgent calls _dt_fetch_incidents
-        # via FunctionTool to retrieve Dynatrace incident history itself - genuine tool use.
+        # via FunctionTool to retrieve Dynatrace incident history itself -  tool use.
         adk_prompt = f"Analyse this PR diff for dangerous patterns:\n\n{diff}"
         pattern, risk_score, risk_rationale = _gemini_fn(adk_prompt)
     else:

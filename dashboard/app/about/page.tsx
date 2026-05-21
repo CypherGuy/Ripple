@@ -352,7 +352,7 @@ export default function About() {
             </h2>
             <p className="text-sm text-ripple-subtle max-w-2xl">
               Four FastAPI microservices communicating via agent-to-agent HTTP calls,
-              orchestrated by Google ADK with Gemini 2.5 Flash. Deployed on
+              orchestrated by Google ADK with Gemini 3 Flash. Deployed on
               Cloud Run (London). Scanning and fixing overlap: the moment a
               service reports a hit, Fix Factory starts on it while remaining
               services are still scanning.

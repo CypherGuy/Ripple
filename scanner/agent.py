@@ -34,7 +34,7 @@ def _gemini_client():
 def _default_gemini(prompt: str) -> list[dict]:
     client = _gemini_client()
     response = client.models.generate_content(
-        model="gemini-2.5-flash", contents=prompt)
+        model="gemini-3-flash-preview", contents=prompt)
     text = response.text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
@@ -53,11 +53,11 @@ def _fetch_service_files(gitlab_namespace: str) -> dict:
 def call_scanner_adk(service: dict, pattern: str) -> list[dict]:
     """Scan a service for a dangerous pattern using an ADK LlmAgent with a GitLab FunctionTool.
 
-    The agent decides whether to fetch files and how to identify hits - genuine agentic tool use.
+    The agent decides whether to fetch files and how to identify hits -  agentic tool use.
     """
     agent = LlmAgent(
         name="ripple_scanner",
-        model="gemini-2.5-flash",
+        model="gemini-3-flash-preview",
         instruction=(
             "You are a code scanner hunting for dangerous patterns in a GitLab repository. "
             "You MUST call the file-reading tool first to fetch the source files before you can answer. "

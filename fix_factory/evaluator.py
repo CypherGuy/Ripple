@@ -26,7 +26,7 @@ def _gemini_client():
 def _default_gemini(prompt: str) -> str:
     client = _gemini_client()
     response = client.models.generate_content(
-        model="gemini-2.5-flash", contents=prompt)
+        model="gemini-3-flash-preview", contents=prompt)
     text = response.text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
@@ -63,7 +63,7 @@ def call_evaluator_adk(hit: dict, patch: str) -> dict:
 
     agent = LlmAgent(
         name="ripple_evaluator",
-        model="gemini-2.5-flash",
+        model="gemini-3-flash-preview",
         instruction=(
             "You are a senior engineer evaluating whether a code fix prevents a production incident. "
             "You MUST call the Dynatrace trace tool to fetch the incident traces before deciding. "

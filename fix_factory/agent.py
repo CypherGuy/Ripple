@@ -32,7 +32,7 @@ def _gemini_client():
 def _default_gemini(prompt: str) -> tuple[str, str, str]:
     client = _gemini_client()
     response = client.models.generate_content(
-        model="gemini-2.5-flash", contents=prompt)
+        model="gemini-3-flash-preview", contents=prompt)
     text = response.text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
@@ -66,7 +66,7 @@ def call_fix_adk(hit: dict, traces: list[dict]) -> tuple[str, str, str]:
 
     agent = LlmAgent(
         name="ripple_fix_agent",
-        model="gemini-2.5-flash",
+        model="gemini-3-flash-preview",
         instruction=(
             "You are a senior engineer generating targeted code fixes grounded in production incident history. "
             "A GitLab history tool is available - use it if you need to see how this team has fixed "

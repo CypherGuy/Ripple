@@ -240,7 +240,7 @@ Builds via Cloud Build, deploys to `europe-west2`. All secrets are pulled from S
 | Layer           | Technology                                                 |
 | --------------- | ---------------------------------------------------------- |
 | Agent framework | Google ADK (`LlmAgent`, `FunctionTool`, `Runner`)          |
-| Model           | Gemini 2.5 Flash (via ADK)                                 |
+| Model           | Gemini 3 Flash (via ADK)                                 |
 | Observability   | OpenTelemetry to Dynatrace (`jfr54188.live.dynatrace.com`) |
 | Primary MCP     | Dynatrace (`query-problems`, `execute-dql`)                |
 | Secondary       | GitLab REST API                                            |
