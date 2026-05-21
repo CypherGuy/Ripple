@@ -206,7 +206,19 @@ export default function Dashboard() {
 
             {/* Reset button */}
             <button
-              onClick={reset}
+              onClick={async () => {
+                try {
+                  await fetch(`${ORCHESTRATOR_URL}/admin/cancel`, {
+                    method: "POST",
+                    headers: {
+                      "X-Admin-Secret": process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "",
+                    },
+                  });
+                } catch {
+                  /* best-effort — still reset the UI */
+                }
+                reset();
+              }}
               className={[
                 "font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded border transition-all duration-150 cursor-pointer",
                 "border-white/10 text-ripple-subtle hover:border-white/20 hover:text-ripple-text",

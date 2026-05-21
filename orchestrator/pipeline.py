@@ -85,6 +85,19 @@ _pending_approvals: dict[str, dict] = {}
 _pipeline_state: dict | None = None
 
 
+def cancel_pipeline() -> dict:
+    global _pipeline_state, _pending_approvals
+    cancelled = 0
+    if _pipeline_state:
+        for task in _pipeline_state.get("tasks", {}).values():
+            if not task.done():
+                task.cancel()
+                cancelled += 1
+        _pipeline_state = None
+    _pending_approvals.clear()
+    return {"cancelled": cancelled}
+
+
 def get_service_list() -> list[dict]:
     namespace = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/pulsecheck")
     services = [

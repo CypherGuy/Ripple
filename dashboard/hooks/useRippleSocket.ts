@@ -82,6 +82,7 @@ export function useRippleSocket() {
   useEffect(() => {
     let destroyed = false;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectDelay = 2000;
 
     function connect() {
       if (destroyed) return;
@@ -93,12 +94,16 @@ export function useRippleSocket() {
           socket.close();
           return;
         }
+        reconnectDelay = 2000;
         setSummary((s) => ({ ...s, connected: true }));
       };
 
       socket.onclose = () => {
         setSummary((s) => ({ ...s, connected: false }));
-        if (!destroyed) reconnectTimer = setTimeout(connect, 2000);
+        if (!destroyed) {
+          reconnectTimer = setTimeout(connect, reconnectDelay);
+          reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+        }
       };
 
       socket.onerror = () => socket.close();

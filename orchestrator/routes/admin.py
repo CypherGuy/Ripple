@@ -41,6 +41,15 @@ def close_all_ripple_mrs(namespaces: list[str], token: str) -> dict:
     return {"closed": closed, "errors": errors}
 
 
+@router.post("/admin/cancel")
+async def cancel_pipeline_route(x_admin_secret: str | None = Header(default=None)):
+    expected = os.environ.get("ADMIN_SECRET", "")
+    if not expected or x_admin_secret != expected:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    from orchestrator.pipeline import cancel_pipeline
+    return cancel_pipeline()
+
+
 @router.post("/admin/close-mrs")
 async def close_mrs(x_admin_secret: str | None = Header(default=None)):
     expected = os.environ.get("ADMIN_SECRET", "")

@@ -86,8 +86,9 @@ export default function PipelineTimeline({ timeline }: Props) {
           <div className="flex items-center gap-4 mb-2">
             {[
               { color: "bg-ripple-accent/70", label: "Intelligence" },
-              { color: "bg-ripple-scan/70", label: "Scan phase" },
-              { color: "bg-blue-500/70", label: "Fix generation (hit)" },
+              { color: "bg-ripple-scan/70", label: "Scanning" },
+              { color: "bg-ripple-hit/70", label: "Hit" },
+              { color: "bg-ripple-clean/70", label: "Clean" },
             ].map(({ color, label }) => (
               <div key={label} className="flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-sm ${color}`} />
@@ -155,7 +156,15 @@ export default function PipelineTimeline({ timeline }: Props) {
                 <div className="flex-1 relative h-4 bg-white/5 rounded overflow-hidden">
                   {scanWidth > 0 && (
                     <div
-                      className={`absolute top-0 h-full rounded ${scanEnd ? "bg-ripple-scan/70" : "bg-ripple-scan/40 animate-pulse"}`}
+                      className={`absolute top-0 h-full rounded ${
+                        !scanEnd
+                          ? "bg-ripple-scan/40 animate-pulse"
+                          : outcome === "clean"
+                            ? "bg-ripple-clean/70"
+                            : outcome === "hit"
+                              ? "bg-ripple-hit/70"
+                              : "bg-ripple-scan/70"
+                      }`}
                       style={{
                         left: `${scanLeft}%`,
                         width: `${Math.max(scanWidth, 1)}%`,
@@ -164,7 +173,7 @@ export default function PipelineTimeline({ timeline }: Props) {
                   )}
                   {fixWidth > 0 && (
                     <div
-                      className="absolute top-0 h-full bg-blue-500/60 rounded"
+                      className="absolute top-0 h-full bg-ripple-hit/60 rounded"
                       style={{
                         left: `${fixLeft}%`,
                         width: `${Math.max(fixWidth, 1)}%`,
@@ -176,7 +185,7 @@ export default function PipelineTimeline({ timeline }: Props) {
                   {!svc ? (
                     <span className="text-ripple-subtle/30">-</span>
                   ) : mrOpened ? (
-                    <span className="text-blue-400">
+                    <span className="text-ripple-hit">
                       {fmt(mrOpened - (scanStart ?? startMs!))}
                     </span>
                   ) : scanEnd ? (
