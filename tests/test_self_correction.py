@@ -173,7 +173,7 @@ def test_correction_fails_all_iterations():
         _store_fn=lambda d: None,
     )
     assert result["self_correction_passed"] is False
-    assert result["correction_iterations"] == 2
+    assert result["correction_iterations"] == 3
     assert result["mr_url"] is None
     assert result["failure_reason"] is not None
 
