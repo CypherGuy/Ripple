@@ -30,7 +30,7 @@ def _parse_records(content: list) -> list[dict]:
 
 
 def fetch_incident_history(env: str, token: str, diff: str) -> list[dict]:
-    data = _call_tool(env, token, "query-problems", {"history": "60d"})
+    data = _call_tool(env, token, "query-problems", {"history": "30d"})
     content = data.get("result", {}).get("content", [])
     return _parse_records(content)
 
