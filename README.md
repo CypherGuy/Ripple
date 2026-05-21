@@ -13,7 +13,7 @@ The same pattern that caused your last outage is being reintroduced by AI-assist
 
 A developer (or an AI coding agent) adds an HTTP call without a timeout. It passes code review. It merges. Six months later, a slow third-party endpoint causes your service to hang, the thread pool exhausts, and the cascade begins. That's P-26051: a 47-minute outage, £23,000 in estimated cost.
 
-The same pattern existed in twelve other services, introduced by three different developers over eighteen months. Nobody knew. Nobody connected the PR that opened it to the incident that proved it was dangerous.
+The same pattern existed in seven other services, introduced by three different developers over eighteen months. Nobody knew. Nobody connected the PR that opened it to the incident that proved it was dangerous.
 
 Every other code review tool asks _"did this pattern appear before?"_ Ripple asks _"did this pattern cause an outage, and where else is it hiding right now?"_
 
@@ -23,15 +23,15 @@ Every other code review tool asks _"did this pattern appear before?"_ Ripple ask
 
 Ripple is a multi-agent AI system that intercepts GitLab PRs, checks them against real Dynatrace production incident history, fans out across every service in your codebase simultaneously, and autonomously opens fix MRs. Each MR cites the exact incident that proved why the pattern is dangerous.
 
-One PR fires the pipeline. Twelve services are scanned in parallel. Fix MRs appear in GitLab within minutes, each citing the specific Dynatrace incident ID, duration, and estimated cost. The developer does not need to know the pattern was dangerous. Ripple already does.
+One PR fires the pipeline. Twelve services are scanned in parallel. Fix MRs appear in GitLab within minutes for every service where the pattern is found, each citing the specific Dynatrace incident ID, duration, and estimated cost. The developer does not need to know the pattern was dangerous. Ripple already does.
 
 ---
 
 ## Demo Environment
 
-The demo runs against **PulseCheck**, a real 12-service Python monitoring platform on GitLab. The incident is **P-26051**: a 47-minute outage caused by `ssl-monitor` hanging on a slow certificate check with no HTTP timeout. Ripple finds that same pattern across all 12 services and opens fix MRs before anything reaches production.
+The demo runs against **PulseCheck**, a real 12-service Python monitoring platform on GitLab. The incident is **P-26051**: a 47-minute outage caused by `ssl-monitor` hanging on a slow certificate check with no HTTP timeout. Ripple finds that same pattern across 8 of the 12 services and opens fix MRs before anything reaches production — the other 4 already have timeouts configured.
 
-**Generalisation:** Ripple's architecture is pattern-agnostic. Timeouts were chosen because they caused the demo incident, not because they are the only pattern. The same pipeline works for any incident-grounded pattern: SQL queries missing indexes, race conditions in async handlers, missing retry logic on third-party calls. Any engineering team with a monitoring platform and a git-based workflow is a potential user. Twelve services fixed in one pipeline run; the same architecture scales to 200.
+**Generalisation:** Ripple's architecture is pattern-agnostic. Timeouts were chosen because they caused the demo incident, not because they are the only pattern. The same pipeline works for any incident-grounded pattern: SQL queries missing indexes, race conditions in async handlers, missing retry logic on third-party calls. Any engineering team with a monitoring platform and a git-based workflow is a potential user. Eight services fixed in one pipeline run across a 12-service codebase; the same architecture scales to 200.
 
 ---
 
