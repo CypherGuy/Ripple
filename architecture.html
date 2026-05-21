@@ -332,13 +332,12 @@
           stroke-dasharray="4,3" marker-end="url(#arr-rose)" />
         <text x="462" y="673" fill="#fb7185" font-size="7" font-family="JetBrains Mono">eval traces (execute-dql)</text>
 
-        <!-- OTel spans → Dynatrace (from all services via OTLP) -->
-        <line x1="540" y1="190" x2="598" y2="265" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,2"
-          marker-end="url(#arr-rose)" opacity="0.6" />
-        <text x="556" y="224" fill="#fb7185" font-size="7" text-anchor="middle" font-family="JetBrains Mono"
-          opacity="0.8">OTel spans</text>
-        <text x="556" y="234" fill="#fb7185" font-size="7" text-anchor="middle" font-family="JetBrains Mono"
-          opacity="0.8">(OTLP)</text>
+        <!-- OTel spans → Dynatrace (all four Cloud Run services ship via OTLP) -->
+        <!-- Rooted at Orchestrator right edge so the line has a visible anchor -->
+        <path d="M 370 162 L 560 162 L 598 270" fill="none" stroke="#fb7185" stroke-width="1"
+          stroke-dasharray="3,2" marker-end="url(#arr-rose)" opacity="0.6"/>
+        <text x="468" y="156" fill="#fb7185" font-size="7" text-anchor="middle" font-family="JetBrains Mono"
+          opacity="0.8">OTel spans · all services (OTLP)</text>
 
         <!-- Intelligence → MongoDB (check previous scans) -->
         <path d="M 372 315 L 580 315 L 580 608 L 600 608" fill="none" stroke="#a78bfa" stroke-width="1"

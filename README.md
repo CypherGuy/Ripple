@@ -159,11 +159,13 @@ All services run on Cloud Run `europe-west2`. Secrets are managed via GCP Secret
 
 Open the dashboard and click **▶ Trigger Demo**. The pipeline fires with the P-26051 incident payload, scanning all 12 PulseCheck services in real time. No terminal required.
 
+This buttons simulates a real GitLab webhook: when a developer opens or updates a merge request, GitLab fires a POST to the Orchestrator's `/webhook` endpoint containing the PR diff and repo. Trigger Demo skips that, it calls the same pipeline directly with a hardcoded payload so a judge can see the full system without needing a GitLab account, webhook configuration, or an actual PR.
+
 ### Risk threshold
 
 Set `AUTO_FIX_THRESHOLD` (default `7`) on the orchestrator. Services with a risk score below threshold show **Approve / Skip** buttons on the dashboard rather than auto-opening an MR.
 
-### curl
+### Example cURL request
 
 ```bash
 curl -X POST https://ripple-orchestrator-mctjeick3a-nw.a.run.app/webhook \
