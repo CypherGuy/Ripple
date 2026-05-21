@@ -15,7 +15,7 @@ SCAR_GATEWAY = {
     "pattern": "HTTP call with no timeout in async context",
     "service": "gateway-service",
     "outcome": "rejected",
-    "reason": "Timeout intentionally absent — internal sidecar.",
+    "reason": "Timeout intentionally absent - internal sidecar.",
     "risk_adjustment": -3,
     "date": "2026-01-12",
 }
@@ -66,10 +66,11 @@ def test_find_similar_wins_returns_empty_when_no_match():
 
 def test_analyze_boosts_risk_score_by_win_confidence(client):
     with patch("intelligence.routes.analyze.fetch_incident_history", return_value=[BASE_EXTRACT["incident_context"]]), \
-         patch("intelligence.routes.analyze.extract_pattern", return_value=BASE_EXTRACT.copy()), \
-         patch("intelligence.routes.analyze.find_similar_wins", return_value=[WIN_AUTH]), \
-         patch("intelligence.routes.analyze.find_similar_scars", return_value=[]):
-        r = client.post("/analyze", json={"pr_id": "1", "repo": "x", "diff": SAMPLE_DIFF})
+            patch("intelligence.routes.analyze.extract_pattern", return_value=BASE_EXTRACT.copy()), \
+            patch("intelligence.routes.analyze.find_similar_wins", return_value=[WIN_AUTH]), \
+            patch("intelligence.routes.analyze.find_similar_scars", return_value=[]):
+        r = client.post(
+            "/analyze", json={"pr_id": "1", "repo": "x", "diff": SAMPLE_DIFF})
 
     assert r.status_code == 200
     body = r.json()
@@ -79,29 +80,32 @@ def test_analyze_boosts_risk_score_by_win_confidence(client):
 
 def test_analyze_adjusts_risk_score_by_scar(client):
     with patch("intelligence.routes.analyze.fetch_incident_history", return_value=[BASE_EXTRACT["incident_context"]]), \
-         patch("intelligence.routes.analyze.extract_pattern", return_value=BASE_EXTRACT.copy()), \
-         patch("intelligence.routes.analyze.find_similar_wins", return_value=[]), \
-         patch("intelligence.routes.analyze.find_similar_scars", return_value=[SCAR_GATEWAY]):
-        r = client.post("/analyze", json={"pr_id": "1", "repo": "x", "diff": SAMPLE_DIFF})
+            patch("intelligence.routes.analyze.extract_pattern", return_value=BASE_EXTRACT.copy()), \
+            patch("intelligence.routes.analyze.find_similar_wins", return_value=[]), \
+            patch("intelligence.routes.analyze.find_similar_scars", return_value=[SCAR_GATEWAY]):
+        r = client.post(
+            "/analyze", json={"pr_id": "1", "repo": "x", "diff": SAMPLE_DIFF})
 
     body = r.json()
     assert body["risk_score"] == 4  # 7 + (-3) from gateway-service scar
-    assert any(s["service"] == "gateway-service" for s in body["previous_scans"])
+    assert any(s["service"] ==
+               "gateway-service" for s in body["previous_scans"])
 
 
 def test_analyze_clamps_risk_score_to_minimum_of_1(client):
     large_scar = {**SCAR_GATEWAY, "risk_adjustment": -10}
     with patch("intelligence.routes.analyze.fetch_incident_history", return_value=[BASE_EXTRACT["incident_context"]]), \
-         patch("intelligence.routes.analyze.extract_pattern", return_value=BASE_EXTRACT.copy()), \
-         patch("intelligence.routes.analyze.find_similar_wins", return_value=[]), \
-         patch("intelligence.routes.analyze.find_similar_scars", return_value=[large_scar]):
-        r = client.post("/analyze", json={"pr_id": "1", "repo": "x", "diff": SAMPLE_DIFF})
+            patch("intelligence.routes.analyze.extract_pattern", return_value=BASE_EXTRACT.copy()), \
+            patch("intelligence.routes.analyze.find_similar_wins", return_value=[]), \
+            patch("intelligence.routes.analyze.find_similar_scars", return_value=[large_scar]):
+        r = client.post(
+            "/analyze", json={"pr_id": "1", "repo": "x", "diff": SAMPLE_DIFF})
 
     assert r.json()["risk_score"] >= 1
 
 
 # ---------------------------------------------------------------------------
-# Feedback loop — writing scars and wins from MR outcomes
+# Feedback loop - writing scars and wins from MR outcomes
 # ---------------------------------------------------------------------------
 
 def test_record_win_writes_to_wins_collection():
@@ -149,7 +153,7 @@ def test_feedback_endpoint_writes_win(monkeypatch):
     client = TestClient(app)
 
     with patch("orchestrator.routes.feedback.record_feedback") as mock_record, \
-         patch("orchestrator.routes.feedback.get_pattern_for_mr", return_value="HTTP call without timeout"):
+            patch("orchestrator.routes.feedback.get_pattern_for_mr", return_value="HTTP call without timeout"):
         mock_record.return_value = None
         r = client.post(
             "/admin/feedback",
@@ -159,7 +163,8 @@ def test_feedback_endpoint_writes_win(monkeypatch):
                 "outcome": "merged",
                 "reason": "Fix accepted",
             },
-            headers={"X-Admin-Secret": os.environ.get("ADMIN_SECRET", "test-admin")},
+            headers={
+                "X-Admin-Secret": os.environ.get("ADMIN_SECRET", "test-admin")},
         )
 
     assert r.status_code == 200
@@ -173,7 +178,8 @@ def test_feedback_endpoint_requires_admin_secret():
     client = TestClient(app)
     r = client.post(
         "/admin/feedback",
-        json={"service": "ssl-monitor", "mr_url": "x", "outcome": "merged", "reason": "x"},
+        json={"service": "ssl-monitor", "mr_url": "x",
+              "outcome": "merged", "reason": "x"},
         headers={"X-Admin-Secret": "wrong"},
     )
     assert r.status_code == 403

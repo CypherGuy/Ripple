@@ -51,7 +51,7 @@ def run():
 
     print()
 
-    # Stagger results — hits and no-hits interleaved
+    # Stagger results - hits and no-hits interleaved
     import random
     results = (
         [(svc, True, path) for svc, path in SERVICES_WITH_HITS.items()] +

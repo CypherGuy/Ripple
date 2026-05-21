@@ -1,6 +1,6 @@
 """
 Live integration tests for Intelligence /analyze.
-Hits the real running service with real Gemini — no mocks.
+Hits the real running service with real Gemini - no mocks.
 
 Run:
     pytest -m live -v
@@ -70,4 +70,5 @@ def test_analyze_pattern_mentions_timeout_or_http():
     """Gemini should recognise this is an HTTP timeout pattern."""
     r = httpx.post(ANALYZE_URL, json=PAYLOAD, timeout=TIMEOUT)
     pattern = r.json()["pattern"].lower()
-    assert any(word in pattern for word in ["timeout", "http", "request", "async", "network"])
+    assert any(word in pattern for word in [
+               "timeout", "http", "request", "async", "network"])

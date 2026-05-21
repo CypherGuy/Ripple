@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 DT4821_INCIDENTS = [
     {
         "incident_id": "DT-4821",
-        "title": "Payment service cascade failure — no timeout on HTTP client",
+        "title": "Payment service cascade failure - no timeout on HTTP client",
         "duration_minutes": 47,
         "estimated_cost": "£23,000",
         "root_cause_summary": "HTTP client with no timeout caused thread pool exhaustion under load.",
@@ -30,13 +30,13 @@ def test_health_returns_ok(client):
 
 def test_analyze_returns_pattern_and_risk_score(client):
     with patch("intelligence.routes.analyze.fetch_incident_history", return_value=DT4821_INCIDENTS), \
-         patch("intelligence.routes.analyze.extract_pattern", return_value={
-             "pattern": "Synchronous HTTP call with no timeout configured.",
-             "risk_score": 9,
-             "risk_rationale": "Matches DT-4821 — 47-minute outage.",
-             "incident_context": DT4821_INCIDENTS[0],
-             "previous_scans": [],
-         }):
+            patch("intelligence.routes.analyze.extract_pattern", return_value={
+                "pattern": "Synchronous HTTP call with no timeout configured.",
+                "risk_score": 9,
+                "risk_rationale": "Matches DT-4821 - 47-minute outage.",
+                "incident_context": DT4821_INCIDENTS[0],
+                "previous_scans": [],
+            }):
         r = client.post("/analyze", json={
             "pr_id": "12345",
             "repo": "org/payment-service",
@@ -50,13 +50,13 @@ def test_analyze_returns_pattern_and_risk_score(client):
 
 def test_analyze_pattern_is_non_empty_string(client):
     with patch("intelligence.routes.analyze.fetch_incident_history", return_value=DT4821_INCIDENTS), \
-         patch("intelligence.routes.analyze.extract_pattern", return_value={
-             "pattern": "Synchronous HTTP call with no timeout configured.",
-             "risk_score": 9,
-             "risk_rationale": "Matches DT-4821.",
-             "incident_context": DT4821_INCIDENTS[0],
-             "previous_scans": [],
-         }):
+            patch("intelligence.routes.analyze.extract_pattern", return_value={
+                "pattern": "Synchronous HTTP call with no timeout configured.",
+                "risk_score": 9,
+                "risk_rationale": "Matches DT-4821.",
+                "incident_context": DT4821_INCIDENTS[0],
+                "previous_scans": [],
+            }):
         r = client.post("/analyze", json={
             "pr_id": "1",
             "repo": "org/svc",
@@ -73,19 +73,21 @@ def test_analyze_rejects_missing_diff(client):
 
 def test_analyze_rejects_diff_over_65536_chars(client):
     huge_diff = "a" * 65537
-    r = client.post("/analyze", json={"pr_id": "1", "repo": "org/svc", "diff": huge_diff})
+    r = client.post(
+        "/analyze", json={"pr_id": "1", "repo": "org/svc", "diff": huge_diff})
     assert r.status_code == 422
 
 
 def test_analyze_accepts_diff_at_65536_chars(client):
     with patch("intelligence.routes.analyze.fetch_incident_history", return_value=DT4821_INCIDENTS), \
-         patch("intelligence.routes.analyze.extract_pattern", return_value={
-             "pattern": "x", "risk_score": 1, "risk_rationale": "y",
-             "incident_context": DT4821_INCIDENTS[0], "previous_scans": [],
-         }), \
-         patch("intelligence.routes.analyze.find_similar_wins", return_value=[]), \
-         patch("intelligence.routes.analyze.find_similar_scars", return_value=[]):
-        r = client.post("/analyze", json={"pr_id": "1", "repo": "org/svc", "diff": "a" * 65536})
+            patch("intelligence.routes.analyze.extract_pattern", return_value={
+                "pattern": "x", "risk_score": 1, "risk_rationale": "y",
+                "incident_context": DT4821_INCIDENTS[0], "previous_scans": [],
+            }), \
+            patch("intelligence.routes.analyze.find_similar_wins", return_value=[]), \
+            patch("intelligence.routes.analyze.find_similar_scars", return_value=[]):
+        r = client.post(
+            "/analyze", json={"pr_id": "1", "repo": "org/svc", "diff": "a" * 65536})
     assert r.status_code == 200
 
 
@@ -109,7 +111,7 @@ def test_extract_pattern_returns_required_keys():
 
 
 # ---------------------------------------------------------------------------
-# call_gemini_adk — ADK LlmAgent integration (RED: these fail until implemented)
+# call_gemini_adk - ADK LlmAgent integration (RED: these fail until implemented)
 # ---------------------------------------------------------------------------
 
 def _make_final_event(text: str):
@@ -137,7 +139,8 @@ def test_call_gemini_adk_returns_pattern_score_rationale_tuple():
     final = _make_final_event(payload)
 
     with patch("intelligence.agent.Runner") as MockRunner:
-        MockRunner.return_value.run.return_value = iter([_make_non_final_event(), final])
+        MockRunner.return_value.run.return_value = iter(
+            [_make_non_final_event(), final])
         pattern, score, rationale = call_gemini_adk("some prompt")
 
     assert pattern == "HTTP call without timeout"
@@ -150,7 +153,8 @@ def test_call_gemini_adk_passes_prompt_as_content_to_runner():
     from intelligence.agent import call_gemini_adk
     from google.genai import types as genai_types
 
-    final = _make_final_event('{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
+    final = _make_final_event(
+        '{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
     run_calls = []
 
     def capture_run(**kwargs):
@@ -173,10 +177,11 @@ def test_call_gemini_adk_creates_llm_agent_with_function_tool():
     from google.adk.tools import FunctionTool
     from google.adk.agents import LlmAgent as RealLlmAgent
 
-    final = _make_final_event('{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
+    final = _make_final_event(
+        '{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
 
     with patch("intelligence.agent.Runner") as MockRunner, \
-         patch("intelligence.agent.LlmAgent", side_effect=RealLlmAgent) as MockLlmAgent:
+            patch("intelligence.agent.LlmAgent", side_effect=RealLlmAgent) as MockLlmAgent:
         MockRunner.return_value.run.return_value = iter([final])
         call_gemini_adk("prompt")
 
@@ -190,10 +195,11 @@ def test_call_gemini_adk_llm_agent_uses_gemini_model():
     """The LlmAgent is configured with a gemini model string."""
     from intelligence.agent import call_gemini_adk
 
-    final = _make_final_event('{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
+    final = _make_final_event(
+        '{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
 
     with patch("intelligence.agent.Runner") as MockRunner, \
-         patch("intelligence.agent.LlmAgent") as MockLlmAgent:
+            patch("intelligence.agent.LlmAgent") as MockLlmAgent:
         MockLlmAgent.return_value = MagicMock()
         MockRunner.return_value.run.return_value = iter([final])
         call_gemini_adk("prompt")
@@ -207,11 +213,12 @@ def test_call_gemini_adk_runner_receives_llm_agent_instance():
     from intelligence.agent import call_gemini_adk
     from unittest.mock import MagicMock
 
-    final = _make_final_event('{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
+    final = _make_final_event(
+        '{"pattern": "x", "risk_score": 5, "risk_rationale": "y"}')
     mock_agent = MagicMock()
 
     with patch("intelligence.agent.LlmAgent", return_value=mock_agent), \
-         patch("intelligence.agent.Runner") as MockRunner:
+            patch("intelligence.agent.Runner") as MockRunner:
         MockRunner.return_value.run.return_value = iter([final])
         call_gemini_adk("prompt")
 
@@ -239,7 +246,8 @@ def test_call_gemini_adk_falls_back_when_no_final_event():
     from intelligence.agent import call_gemini_adk
 
     with patch("intelligence.agent.Runner") as MockRunner:
-        MockRunner.return_value.run.return_value = iter([_make_non_final_event()])
+        MockRunner.return_value.run.return_value = iter(
+            [_make_non_final_event()])
         _, score, _ = call_gemini_adk("prompt")
 
     assert score == 5
@@ -286,7 +294,7 @@ def test_extract_pattern_still_accepts_gemini_fn_override():
 
 def test_call_gemini_adk_prompt_does_not_include_preloaded_incidents():
     """The ADK agent prompt must NOT contain pre-fetched incidents.
-    The agent should call the FunctionTool to fetch them itself — that is
+    The agent should call the FunctionTool to fetch them itself - that is
     genuine agentic tool use. If incidents are pre-embedded in the prompt,
     the tool is never needed and the ADK integration is decorative."""
     from intelligence.agent import call_gemini_adk
@@ -298,21 +306,24 @@ def test_call_gemini_adk_prompt_does_not_include_preloaded_incidents():
         prompts_sent.append(new_message.parts[0].text)
         event = MagicMock()
         event.is_final_response.return_value = True
-        event.content.parts = [MagicMock(text='{"pattern":"p","risk_score":8,"risk_rationale":"r"}')]
+        event.content.parts = [
+            MagicMock(text='{"pattern":"p","risk_score":8,"risk_rationale":"r"}')]
         return [event]
 
     with patch("intelligence.agent.LlmAgent"), \
-         patch("intelligence.agent.InMemorySessionService") as MockSvc, \
-         patch("intelligence.agent.Runner") as MockRunner:
-        MockSvc.return_value._create_session_impl.return_value = MagicMock(id="s1")
+            patch("intelligence.agent.InMemorySessionService") as MockSvc, \
+            patch("intelligence.agent.Runner") as MockRunner:
+        MockSvc.return_value._create_session_impl.return_value = MagicMock(
+            id="s1")
         MockRunner.return_value.run = fake_runner_run
         call_gemini_adk("@@ -12 +12 @@ response = httpx.get(url)")
 
     assert prompts_sent, "Runner.run was never called"
     # The prompt should contain the raw diff, not pre-loaded JSON incident data
-    assert "Query result records" not in prompts_seen[0] if (prompts_seen := prompts_sent) else True
+    assert "Query result records" not in prompts_seen[0] if (
+        prompts_seen := prompts_sent) else True
     assert "incident_id" not in prompts_sent[0], (
-        "Prompt contains pre-fetched incident data — the FunctionTool will never be called"
+        "Prompt contains pre-fetched incident data - the FunctionTool will never be called"
     )
 
 
@@ -328,16 +339,19 @@ def test_adk_instruction_does_not_explicitly_direct_tool_call():
     class CaptureLlmAgent:
         def __init__(self, *args, **kwargs):
             captured_instruction["text"] = kwargs.get("instruction", "")
+
         def __getattr__(self, name):
             return MagicMock()
 
     with patch("intelligence.agent.LlmAgent", CaptureLlmAgent), \
-         patch("intelligence.agent.InMemorySessionService") as MockSvc, \
-         patch("intelligence.agent.Runner") as MockRunner:
+            patch("intelligence.agent.InMemorySessionService") as MockSvc, \
+            patch("intelligence.agent.Runner") as MockRunner:
         mock_event = MagicMock()
         mock_event.is_final_response.return_value = True
-        mock_event.content.parts = [MagicMock(text='{"pattern":"p","risk_score":8,"risk_rationale":"r"}')]
-        MockSvc.return_value._create_session_impl.return_value = MagicMock(id="s1")
+        mock_event.content.parts = [
+            MagicMock(text='{"pattern":"p","risk_score":8,"risk_rationale":"r"}')]
+        MockSvc.return_value._create_session_impl.return_value = MagicMock(
+            id="s1")
         MockRunner.return_value.run.return_value = [mock_event]
         try:
             call_gemini_adk("test diff")
@@ -346,15 +360,15 @@ def test_adk_instruction_does_not_explicitly_direct_tool_call():
 
     instruction = captured_instruction.get("text", "").lower()
     assert "call the tool" not in instruction, \
-        "Instruction explicitly directs tool call — model has no agency"
+        "Instruction explicitly directs tool call - model has no agency"
     assert "use the tool" not in instruction, \
-        "Instruction explicitly directs tool use — model has no agency"
+        "Instruction explicitly directs tool use - model has no agency"
     assert "tool" in instruction or "dynatrace" in instruction, \
         "Instruction should mention the tool is available without mandating its use"
 
 
 # ---------------------------------------------------------------------------
-# Continuous severity scaling — _severity_adjustment and _parse_cost
+# Continuous severity scaling - _severity_adjustment and _parse_cost
 # ---------------------------------------------------------------------------
 
 def test_severity_adjustment_short_duration_no_floor():
@@ -363,40 +377,48 @@ def test_severity_adjustment_short_duration_no_floor():
     assert floor == 0
     assert boost == 0
 
+
 def test_severity_adjustment_10_to_30_min():
     from intelligence.agent import _severity_adjustment
     floor, _ = _severity_adjustment(20, "£0")
     assert floor == 6
+
 
 def test_severity_adjustment_30_to_60_min():
     from intelligence.agent import _severity_adjustment
     floor, _ = _severity_adjustment(47, "£0")
     assert floor == 8
 
+
 def test_severity_adjustment_60_to_120_min():
     from intelligence.agent import _severity_adjustment
     floor, _ = _severity_adjustment(90, "£0")
     assert floor == 9
+
 
 def test_severity_adjustment_over_120_min():
     from intelligence.agent import _severity_adjustment
     floor, _ = _severity_adjustment(150, "£0")
     assert floor == 10
 
+
 def test_severity_adjustment_cost_boost_10k_to_50k():
     from intelligence.agent import _severity_adjustment
     _, boost = _severity_adjustment(0, "£23,000")
     assert boost == 2
+
 
 def test_severity_adjustment_cost_boost_over_50k():
     from intelligence.agent import _severity_adjustment
     _, boost = _severity_adjustment(0, "£60,000")
     assert boost == 3
 
+
 def test_severity_adjustment_cost_boost_under_1k():
     from intelligence.agent import _severity_adjustment
     _, boost = _severity_adjustment(0, "£500")
     assert boost == 0
+
 
 def test_severity_adjustment_combined_47min_23k():
     from intelligence.agent import _severity_adjustment
@@ -404,35 +426,44 @@ def test_severity_adjustment_combined_47min_23k():
     assert floor == 8
     assert boost == 2
 
+
 def test_parse_cost_handles_pound_with_commas():
     from intelligence.agent import _parse_cost
     assert _parse_cost("£23,000") == 23000
+
 
 def test_parse_cost_handles_dollar():
     from intelligence.agent import _parse_cost
     assert _parse_cost("$5000") == 5000
 
+
 def test_parse_cost_handles_unknown():
     from intelligence.agent import _parse_cost
     assert _parse_cost("unknown") == 0
 
+
 def test_extract_pattern_uses_severity_adjustment():
     from intelligence.agent import extract_pattern
-    incident = {"duration_minutes": 90, "estimated_cost": "£60,000", "incident_id": "X-1"}
-    result = extract_pattern("diff", [incident], _gemini_fn=lambda p: ("pattern", 5, "rationale"))
+    incident = {"duration_minutes": 90,
+                "estimated_cost": "£60,000", "incident_id": "X-1"}
+    result = extract_pattern(
+        "diff", [incident], _gemini_fn=lambda p: ("pattern", 5, "rationale"))
     # floor=9 (60-120min), boost=3 (>=£50k) → max(5+3, 9) = max(8, 9) = 9
     assert result["risk_score"] >= 9
 
+
 def test_extract_pattern_p26051_still_scores_high():
     from intelligence.agent import extract_pattern
-    incident = {"duration_minutes": 47, "estimated_cost": "£23,000", "incident_id": "P-26051"}
-    result = extract_pattern("diff", [incident], _gemini_fn=lambda p: ("pattern", 7, "rationale"))
+    incident = {"duration_minutes": 47,
+                "estimated_cost": "£23,000", "incident_id": "P-26051"}
+    result = extract_pattern(
+        "diff", [incident], _gemini_fn=lambda p: ("pattern", 7, "rationale"))
     # floor=8, boost=2 → max(7+2, 8) = max(9, 8) = 9
     assert result["risk_score"] == 9
 
 
 # ---------------------------------------------------------------------------
-# ADK completeness — Scanner, Fix Factory agent, Fix Factory evaluator
+# ADK completeness - Scanner, Fix Factory agent, Fix Factory evaluator
 # ---------------------------------------------------------------------------
 
 def test_scanner_has_adk_function():

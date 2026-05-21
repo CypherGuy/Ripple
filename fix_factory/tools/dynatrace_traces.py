@@ -5,7 +5,7 @@ import httpx
 _MCP_URL = "https://{env}/platform-reserved/mcp-gateway/v0.1/servers/dynatrace-mcp/mcp"
 _INCIDENT_ID_RE = re.compile(r"^[A-Z]+-\d+$")
 
-# Cache traces per incident_id — all 12 parallel fix requests use the same incident,
+# Cache traces per incident_id - all 12 parallel fix requests use the same incident,
 # so only the first call hits Dynatrace; the rest return instantly.
 _trace_cache: dict[str, list[dict]] = {}
 
@@ -28,7 +28,7 @@ def _parse_traces(r: httpx.Response) -> list[dict]:
 
 
 async def get_incident_traces(env: str, token: str, incident_id: str) -> list[dict]:
-    """Async — non-blocking Dynatrace DQL query with per-incident caching."""
+    """Async - non-blocking Dynatrace DQL query with per-incident caching."""
     validate_incident_id(incident_id)
 
     if incident_id in _trace_cache:
@@ -41,7 +41,8 @@ async def get_incident_traces(env: str, token: str, incident_id: str) -> list[di
                 _MCP_URL.format(env=env),
                 json={"jsonrpc": "2.0", "method": "tools/call",
                       "params": {"name": "execute-dql", "arguments": {"dqlQueryString": dql}}, "id": 1},
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                headers={"Authorization": f"Bearer {token}",
+                         "Content-Type": "application/json"},
                 timeout=15,
             )
             r.raise_for_status()

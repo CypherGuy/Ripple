@@ -125,7 +125,7 @@ def test_demo_trigger_allows_request_after_cooldown(client):
 
 
 # ---------------------------------------------------------------------------
-# Trigger Demo button — webhook must accept incident_context in the payload
+# Trigger Demo button - webhook must accept incident_context in the payload
 # ---------------------------------------------------------------------------
 
 DEMO_PAYLOAD = {
@@ -217,13 +217,15 @@ def test_pipeline_uses_webhook_incident_context_when_intel_returns_none():
         },
     }
 
-    asyncio.run(run_pipeline(payload_with_context, "trace-demo", _client=mock_client))
+    asyncio.run(run_pipeline(payload_with_context,
+                "trace-demo", _client=mock_client))
 
     assert fix_payloads_seen, "Fix Factory was never called"
     fix_ctx = fix_payloads_seen[0].get("incident_context", {})
     assert fix_ctx.get("incident_id") == "P-26051", \
         f"Expected P-26051 in incident_context passed to Fix Factory, got: {fix_ctx}"
-    assert fix_ctx.get("root_cause_summary") == "ssl-monitor hung on slow cert check"
+    assert fix_ctx.get(
+        "root_cause_summary") == "ssl-monitor hung on slow cert check"
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +268,8 @@ def test_pipeline_does_not_fix_when_risk_below_threshold():
     mock_client = AsyncMock()
     mock_client.post = mock_post
 
-    asyncio.run(run_pipeline({"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
+    asyncio.run(run_pipeline(
+        {"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
     assert fix_called["n"] == 0, "Fix Factory should not be called when risk is below threshold"
 
 
@@ -304,8 +307,10 @@ def test_pipeline_broadcasts_requires_approval_when_risk_below_threshold():
     mock_client = AsyncMock()
     mock_client.post = mock_post
 
-    asyncio.run(run_pipeline({"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
-    approval_events = [c for c in broadcast_calls if c.get("event") == "requires_approval"]
+    asyncio.run(run_pipeline(
+        {"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
+    approval_events = [c for c in broadcast_calls if c.get(
+        "event") == "requires_approval"]
     assert len(approval_events) == 1
     assert approval_events[0]["service"] == "ssl-monitor"
 
@@ -346,7 +351,8 @@ def test_pipeline_auto_fixes_when_risk_at_or_above_threshold():
     mock_client = AsyncMock()
     mock_client.post = mock_post
 
-    asyncio.run(run_pipeline({"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
+    asyncio.run(run_pipeline(
+        {"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
     assert fix_called["n"] == 1
 
 
@@ -356,14 +362,16 @@ def test_approve_endpoint_triggers_fix_with_inline_payload(client):
     os.environ["ADMIN_SECRET"] = "test-admin-secret"
     os.environ["AUTO_FIX_THRESHOLD"] = "7"
 
-    fake_hit = {"service": "ssl-monitor", "file_path": "m.py", "matching_lines": [], "confidence": 0.8}
+    fake_hit = {"service": "ssl-monitor", "file_path": "m.py",
+                "matching_lines": [], "confidence": 0.8}
     fake_intel = {"pattern": "x", "incident_context": {}}
 
     with patch("orchestrator.routes.internal.fix_hit", new_callable=AsyncMock) as mock_fix:
         mock_fix.return_value = {"mr_url": None, "service": "ssl-monitor"}
         r = client.post(
             "/internal/approve",
-            json={"service": "ssl-monitor", "hit": fake_hit, "intel": fake_intel, "trace_id": "t"},
+            json={"service": "ssl-monitor", "hit": fake_hit,
+                  "intel": fake_intel, "trace_id": "t"},
             headers={"X-Admin-Secret": "test-admin-secret"},
         )
 
@@ -377,9 +385,11 @@ def test_approve_endpoint_falls_back_to_pending_state(client):
     import orchestrator.pipeline as pipeline_mod
     os.environ["ADMIN_SECRET"] = "test-admin-secret"
 
-    fake_hit = {"service": "ssl-monitor", "file_path": "m.py", "matching_lines": [], "confidence": 0.8}
+    fake_hit = {"service": "ssl-monitor", "file_path": "m.py",
+                "matching_lines": [], "confidence": 0.8}
     fake_intel = {"pattern": "x", "incident_context": {}}
-    pipeline_mod._pending_approvals["ssl-monitor"] = {"hit": fake_hit, "intel": fake_intel, "trace_id": "t"}
+    pipeline_mod._pending_approvals["ssl-monitor"] = {
+        "hit": fake_hit, "intel": fake_intel, "trace_id": "t"}
 
     with patch("orchestrator.routes.internal.fix_hit", new_callable=AsyncMock) as mock_fix:
         mock_fix.return_value = {"mr_url": None, "service": "ssl-monitor"}

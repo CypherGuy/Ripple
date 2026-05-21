@@ -80,7 +80,7 @@ ORCHESTRATOR_URL = os.environ.get("ORCHESTRATOR_URL", "http://localhost:8000")
 # Services awaiting user approval: {service_name: {hit, intel, trace_id}}
 _pending_approvals: dict[str, dict] = {}
 
-# Active pipeline context — set while scanner is running so /internal/scan-event
+# Active pipeline context - set while scanner is running so /internal/scan-event
 # can trigger fix_hit per-hit without waiting for all scans to finish.
 _pipeline_state: dict | None = None
 
@@ -93,7 +93,8 @@ def get_service_list() -> list[dict]:
         "webhook-dispatcher", "incident-manager", "metrics-collector", "report-generator",
     ]
     return [
-        {"name": s, "repo": f"{namespace}/{s}", "gitlab_namespace": f"{namespace}/{s}"}
+        {"name": s, "repo": f"{namespace}/{s}",
+            "gitlab_namespace": f"{namespace}/{s}"}
         for s in services
     ]
 
@@ -144,7 +145,8 @@ async def fix_hit(
     try:
         r = await client.post(
             f"{FIX_FACTORY_URL}/fix",
-            json={**hit, "incident_context": intel.get("incident_context", {})},
+            json={
+                **hit, "incident_context": intel.get("incident_context", {})},
             headers=headers,
             timeout=360,
         )
@@ -197,12 +199,14 @@ async def run_pipeline(
 
     try:
         # Discover services dynamically from GitLab group API
-        namespace = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/pulsecheck")
+        namespace = os.environ.get(
+            "DEMO_NAMESPACE", "cypherguy-group/pulsecheck")
         gitlab_token = os.environ.get("GITLAB_TOKEN", "")
         services = await fetch_services_from_gitlab(namespace, gitlab_token, _client)
 
         # Immediately fan out agent_started events so tiles go amber without waiting for Intelligence
         internal_secret = os.environ.get("INTERNAL_SECRET", "")
+
         async def _pre_broadcast():
             import datetime
             ts = datetime.datetime.now(datetime.UTC).isoformat()
@@ -210,7 +214,8 @@ async def run_pipeline(
                 try:
                     await _client.post(
                         f"{ORCHESTRATOR_URL}/internal/broadcast",
-                        json={"event": "agent_started", "service": svc["name"], "timestamp": ts},
+                        json={"event": "agent_started",
+                              "service": svc["name"], "timestamp": ts},
                         headers={"X-Internal-Secret": internal_secret},
                         timeout=3,
                     )
@@ -218,7 +223,7 @@ async def run_pipeline(
                     pass
         asyncio.create_task(_pre_broadcast())
 
-        # Intelligence — fall back to diff-as-pattern on any failure so the pipeline
+        # Intelligence - fall back to diff-as-pattern on any failure so the pipeline
         # continues scanning even when Gemini is temporarily unavailable.
         fallback_intel = {
             "pattern": payload.get("diff", "HTTP call without timeout"),
@@ -230,19 +235,22 @@ async def run_pipeline(
         try:
             intel_r = await _client.post(
                 f"{INTELLIGENCE_URL}/analyze",
-                json={"pr_id": payload["pr_id"], "repo": payload.get("repo", ""), "diff": payload.get("diff", "")},
+                json={"pr_id": payload["pr_id"], "repo": payload.get(
+                    "repo", ""), "diff": payload.get("diff", "")},
                 headers=headers,
                 timeout=120,
             )
             intel = _safe_json(intel_r, fallback_intel)
             if not intel.get("pattern"):
-                logger.warning("Intelligence returned empty pattern; using diff fallback")
+                logger.warning(
+                    "Intelligence returned empty pattern; using diff fallback")
                 intel = fallback_intel
             # Merge webhook-supplied incident_context as fallback when intel returns none
             if not intel.get("incident_context") and payload.get("incident_context"):
                 intel["incident_context"] = payload["incident_context"]
         except Exception:
-            logger.exception("Intelligence service error — continuing with diff fallback")
+            logger.exception(
+                "Intelligence service error - continuing with diff fallback")
             intel = fallback_intel
 
         # Normalise Intelligence's incident_context:
@@ -264,7 +272,8 @@ async def run_pipeline(
         intel["incident_context"] = intel_ctx
 
         if not intel.get("pattern"):
-            logger.warning("Pattern still empty after fallback; using raw diff")
+            logger.warning(
+                "Pattern still empty after fallback; using raw diff")
             intel["pattern"] = payload.get("diff", "HTTP call without timeout")
 
         threshold = int(os.environ.get("AUTO_FIX_THRESHOLD", "7"))
@@ -284,7 +293,7 @@ async def run_pipeline(
 
         # Set pipeline state so /internal/scan-event can start fix tasks per-hit
         # as scanning progresses, without waiting for all services to finish.
-        # Only set for high-risk path — low-risk uses approval flow instead.
+        # Only set for high-risk path - low-risk uses approval flow instead.
         global _pipeline_state
         if risk_score >= threshold:
             _pipeline_state = {
@@ -309,7 +318,7 @@ async def run_pipeline(
                 timeout=600,
             )
             hits = _safe_json(scan_r, {"hits": []}).get("hits", [])
-            # One MR per service — keep highest-confidence hit when a service has multiple
+            # One MR per service - keep highest-confidence hit when a service has multiple
             seen: dict[str, dict] = {}
             for h in hits:
                 svc = h.get("service", "")
@@ -318,8 +327,9 @@ async def run_pipeline(
             hits = list(seen.values())
         except Exception:
             # Scanner HTTP call failed but hit callbacks may still arrive via
-            # /internal/scan-event — keep _pipeline_state alive so fix_hit fires.
-            logger.exception("Scanner call failed; keeping pipeline state for callbacks")
+            # /internal/scan-event - keep _pipeline_state alive so fix_hit fires.
+            logger.exception(
+                "Scanner call failed; keeping pipeline state for callbacks")
             hits = []
 
         if risk_score < threshold:
@@ -327,7 +337,8 @@ async def run_pipeline(
             internal_secret = os.environ.get("INTERNAL_SECRET", "")
             for hit in hits:
                 svc = hit.get("service", "")
-                _pending_approvals[svc] = {"hit": hit, "intel": intel, "trace_id": trace_id}
+                _pending_approvals[svc] = {
+                    "hit": hit, "intel": intel, "trace_id": trace_id}
                 try:
                     await _client.post(
                         f"{ORCHESTRATOR_URL}/internal/broadcast",
@@ -365,7 +376,8 @@ async def run_pipeline(
 
     except Exception:
         # Broadcast no_hit for all services so tiles don't get stuck on SCANNING
-        logger.exception("Pipeline crashed — broadcasting no_hit to unstick tiles")
+        logger.exception(
+            "Pipeline crashed - broadcasting no_hit to unstick tiles")
         internal_secret = os.environ.get("INTERNAL_SECRET", "")
         try:
             svcs = await fetch_services_from_gitlab(

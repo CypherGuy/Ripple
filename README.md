@@ -37,7 +37,7 @@ The demo runs against **PulseCheck**, a real 12-service Python monitoring platfo
 
 ## Architecture
 
-Four FastAPI microservices on Google Cloud Run (London), coordinated via A2A protocol. Each service is powered by a Google ADK `LlmAgent` with FunctionTools that the agent calls based on its own assessment of what information it needs.
+Four FastAPI microservices on Google Cloud Run (London), communicating via agent-to-agent HTTP calls. Each service is powered by a Google ADK `LlmAgent` with FunctionTools that the agent calls based on its own assessment of what information it needs.
 
 ```
 GitLab Webhook / Trigger Demo
@@ -93,7 +93,7 @@ All four services use Google ADK `LlmAgent` with `FunctionTool`:
 
 ## OpenTelemetry to Dynatrace
 
-Dynatrace observes Ripple the same way Ripple observes your code.
+Ripple ships its own telemetry to the same Dynatrace environment it uses to observe your codebase.
 
 Every pipeline run ships spans to `jfr54188.live.dynatrace.com` via the OTLP exporter:
 
@@ -114,9 +114,9 @@ Win  → merged fix, no incidents since → confidence_boost: +1
 Scar → rejected fix, pattern was intentional → risk_adjustment: -2
 ```
 
-Every subsequent scan on the same codebase queries this history. Scars lower the risk score on patterns a team has deliberately chosen not to fix. Wins raise confidence on patterns they have already addressed. The system compounds; it does not ask you the same question twice.
+Every subsequent scan on the same codebase queries this history. Scars lower the risk score on patterns a team has deliberately chosen not to fix. Wins raise confidence on patterns they have already addressed. Ripple gets more accurate with each run on the same codebase.
 
-When accumulated scars push a risk score below the configurable `AUTO_FIX_THRESHOLD`, Ripple switches from auto-fixing to requesting approval. The developer sees **Approve / Skip** buttons on the dashboard tile rather than an automatically opened MR. You are the architect; Ripple is the junior developer.
+When accumulated scars push a risk score below the configurable `AUTO_FIX_THRESHOLD`, Ripple switches from auto-fixing to requesting approval. The developer sees **Approve / Skip** buttons on the dashboard tile rather than an automatically opened MR - the decision stays with the engineer.
 
 ---
 

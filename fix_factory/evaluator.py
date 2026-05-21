@@ -25,7 +25,8 @@ def _gemini_client():
 
 def _default_gemini(prompt: str) -> str:
     client = _gemini_client()
-    response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash", contents=prompt)
     text = response.text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
@@ -33,7 +34,7 @@ def _default_gemini(prompt: str) -> str:
 
 
 def _fetch_incident_traces_for_eval(incident_id: str) -> list[dict]:
-    """Fetch Dynatrace traces for an incident — used by the evaluator agent for validation."""
+    """Fetch Dynatrace traces for an incident - used by the evaluator agent for validation."""
     import asyncio
     from fix_factory.tools.dynatrace_traces import get_incident_traces
     env = os.environ.get("DT_ENVIRONMENT", "")
@@ -87,11 +88,12 @@ def call_evaluator_adk(hit: dict, patch: str) -> dict:
         f"Evaluate this code fix.\n\n"
         f"Original code: {json.dumps(lines)}\n"
         f"Proposed patch:\n{patch}\n\n"
-        f"Incident: {incident_id} — {ctx.get('duration_minutes', '?')} min outage.\n"
-        f"Root cause: {root_cause or 'Not available — evaluate on technical merit.'}\n\n"
+        f"Incident: {incident_id} - {ctx.get('duration_minutes', '?')} min outage.\n"
+        f"Root cause: {root_cause or 'Not available - evaluate on technical merit.'}\n\n"
         f"Use the Dynatrace trace tool if you need more context. Return only the JSON object."
     )
-    message = genai_types.Content(role="user", parts=[genai_types.Part(text=prompt)])
+    message = genai_types.Content(
+        role="user", parts=[genai_types.Part(text=prompt)])
 
     text = ""
     for event in runner.run(user_id="system", session_id=str(uuid.uuid4()), new_message=message):
@@ -103,14 +105,17 @@ def call_evaluator_adk(hit: dict, patch: str) -> dict:
         text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
     try:
         result = json.loads(text)
-        evaluated_on = "incident_context" if root_cause and not _root_cause_missing(ctx) else "technical_merit"
+        evaluated_on = "incident_context" if root_cause and not _root_cause_missing(
+            ctx) else "technical_merit"
         return {"passed": bool(result.get("passed")), "rationale": result.get("rationale", ""), "evaluated_on": evaluated_on}
     except (json.JSONDecodeError, KeyError) as e:
-        logger.warning("call_evaluator_adk parse failed: %s | raw: %.200s", e, text)
+        logger.warning(
+            "call_evaluator_adk parse failed: %s | raw: %.200s", e, text)
         return {"passed": False, "rationale": "Could not parse evaluator response.", "evaluated_on": "technical_merit"}
 
 
-_MISSING_ROOT_CAUSE = {"", "no summary provided.", "no summary provided", "none"}
+_MISSING_ROOT_CAUSE = {"", "no summary provided.",
+                       "no summary provided", "none"}
 
 
 def _root_cause_missing(ctx: dict) -> bool:
@@ -124,11 +129,12 @@ def evaluate_fix(hit: dict, patch: str, _gemini_fn=None) -> dict:
     if _gemini_fn is None:
         # ADK path: LlmAgent with Dynatrace FunctionTool for trace-grounded evaluation.
         # Fall back to direct Gemini on any ADK failure (e.g. 503) so iterations are
-        # not wasted — we always get a usable evaluation result.
+        # not wasted - we always get a usable evaluation result.
         try:
             return call_evaluator_adk(hit, patch)
         except Exception:
-            logger.exception("call_evaluator_adk failed; falling back to direct Gemini")
+            logger.exception(
+                "call_evaluator_adk failed; falling back to direct Gemini")
             _gemini_fn = _default_gemini
     lines = hit.get("matching_lines", [])
 
@@ -142,7 +148,7 @@ ORIGINAL CODE:
 PROPOSED FIX:
 {patch}
 
-CRITICAL CONSTRAINTS — the fix must satisfy ALL of the following to pass:
+CRITICAL CONSTRAINTS - the fix must satisfy ALL of the following to pass:
 1. The fix must only modify an HTTP client function call (requests.get, requests.post, requests.put,
    requests.delete, httpx.get, httpx.post, httpx.put, urllib.request.urlopen, etc.)
 2. The fix must add timeout=N as a keyword argument to that HTTP function call
@@ -166,7 +172,7 @@ PROPOSED PATCH:
 
 INCIDENT ROOT CAUSE:
 {ctx.get("root_cause_summary")}
-Incident: {ctx.get("incident_id", "unknown")} — {ctx.get("duration_minutes", "?")} min outage.
+Incident: {ctx.get("incident_id", "unknown")} - {ctx.get("duration_minutes", "?")} min outage.
 
 Does this patch directly fix the root cause? Return JSON:
 {{"passed": true/false, "rationale": "one sentence explaining why"}}

@@ -67,7 +67,7 @@ def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
     """Run pattern extraction via an ADK LlmAgent with a Dynatrace FunctionTool.
 
     The prompt contains only the raw diff. The agent decides whether to call
-    _dt_fetch_incidents to retrieve Dynatrace incident history — this is genuine
+    _dt_fetch_incidents to retrieve Dynatrace incident history - this is genuine
     agentic tool use, not decorative. If the diff looks dangerous, the agent calls
     the tool; the tool queries the Dynatrace MCP and returns real incident records
     which the agent uses to ground its risk score and rationale.
@@ -123,7 +123,8 @@ def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
         parsed = json.loads(text)
         return parsed["pattern"], int(parsed["risk_score"]), parsed["risk_rationale"]
     except (json.JSONDecodeError, KeyError, ValueError) as e:
-        logger.warning("call_gemini_adk parse failed: %s | raw: %.200s", e, text)
+        logger.warning(
+            "call_gemini_adk parse failed: %s | raw: %.200s", e, text)
         return text, 5, "Could not parse structured response."
 
 
@@ -136,8 +137,8 @@ def _parse_cost(cost_str: str) -> int:
 def _severity_adjustment(duration: int, cost_str: str) -> tuple[int, int]:
     """Return (floor, boost) based on incident duration and estimated cost.
 
-    floor — minimum risk_score this incident warrants regardless of Gemini's score
-    boost — additive points on top of Gemini's score
+    floor - minimum risk_score this incident warrants regardless of Gemini's score
+    boost - additive points on top of Gemini's score
     """
     if duration >= DURATION_FLOOR_10:
         floor = 10
@@ -177,7 +178,7 @@ def extract_pattern(
 
     if _gemini_fn is call_gemini_adk:
         # ADK path: send only the raw diff. The LlmAgent calls _dt_fetch_incidents
-        # via FunctionTool to retrieve Dynatrace incident history itself — genuine tool use.
+        # via FunctionTool to retrieve Dynatrace incident history itself - genuine tool use.
         adk_prompt = f"Analyse this PR diff for dangerous patterns:\n\n{diff}"
         pattern, risk_score, risk_rationale = _gemini_fn(adk_prompt)
     else:

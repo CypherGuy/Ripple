@@ -24,7 +24,8 @@ def create_mr(
 
     try:
         # Get default branch
-        proj = httpx.get(f"{_GITLAB_BASE}/projects/{encoded}", headers=headers, timeout=10)
+        proj = httpx.get(f"{_GITLAB_BASE}/projects/{encoded}",
+                         headers=headers, timeout=10)
         proj.raise_for_status()
         default_branch = proj.json().get("default_branch", "main")
 
@@ -53,13 +54,13 @@ def create_mr(
         cost = incident_context.get("estimated_cost", "unknown")
         if evaluated_on == "technical_merit":
             verification_note = (
-                "_Verified on technical merit — no incident root cause was available "
+                "_Verified on technical merit - no incident root cause was available "
                 "from Dynatrace at evaluation time. Fix is structurally sound._"
             )
         else:
             verification_note = (
                 f"_Verified against incident root cause. "
-                f"Incident: {incident_id} — {duration} min outage, {cost}._"
+                f"Incident: {incident_id} - {duration} min outage, {cost}._"
             )
         mr_r = httpx.post(f"{_GITLAB_BASE}/projects/{encoded}/merge_requests",
                           json={
@@ -68,13 +69,13 @@ def create_mr(
                               "title": f"fix: prevent {incident_id} pattern in {file_path}",
                               "description": (
                                   f"**Automated fix by Ripple**\n\n"
-                                  f"Incident: {incident_id} — {duration} min outage, {cost}\n\n"
+                                  f"Incident: {incident_id} - {duration} min outage, {cost}\n\n"
                                   f"This fix prevents the timeout-less HTTP call pattern "
                                   f"that caused the incident above.\n\n"
                                   f"{verification_note}"
                               ),
-                          },
-                          headers=headers, timeout=10)
+        },
+            headers=headers, timeout=10)
         mr_r.raise_for_status()
         return mr_r.json().get("web_url")
     except Exception as e:

@@ -1,116 +1,160 @@
-'use client'
-import { useEffect, useRef, useState } from 'react'
+"use client";
+import { useEffect, useRef, useState } from "react";
 
-export type ServiceStatus = 'idle' | 'scanning' | 'hit' | 'clean' | 'requires_approval' | 'skipped' | 'approving'
+export type ServiceStatus =
+  | "idle"
+  | "scanning"
+  | "hit"
+  | "clean"
+  | "requires_approval"
+  | "skipped"
+  | "approving";
 
 export interface ServiceState {
-  status: ServiceStatus
-  mrUrl: string | null
-  fileHit: string | null
-  confidence: number | null
-  timestamp: string | null
-  riskScore: number | null
-  pattern: string | null
-  evaluatedOn: 'incident_context' | 'technical_merit' | null
-  correctionIterations: number | null
-  incidentId: string | null
-  feedbackOutcome: 'merged' | 'closed' | null
-  approvalPayload: unknown | null
+  status: ServiceStatus;
+  mrUrl: string | null;
+  fileHit: string | null;
+  confidence: number | null;
+  timestamp: string | null;
+  riskScore: number | null;
+  pattern: string | null;
+  evaluatedOn: "incident_context" | "technical_merit" | null;
+  correctionIterations: number | null;
+  incidentId: string | null;
+  feedbackOutcome: "merged" | "closed" | null;
+  approvalPayload: unknown | null;
 }
 
 export interface ScanSummary {
-  scanned: number
-  hits: number
-  clean: number
-  mrsOpened: number
-  connected: boolean
-  riskScore: number | null
-  pipelineStartMs: number | null
-  pipelineEndMs: number | null
+  scanned: number;
+  hits: number;
+  clean: number;
+  mrsOpened: number;
+  connected: boolean;
+  riskScore: number | null;
+  pipelineStartMs: number | null;
+  pipelineEndMs: number | null;
 }
 
 export interface ServiceTiming {
-  scanStartMs: number | null
-  scanEndMs: number | null
-  mrOpenedMs: number | null
-  outcome: 'hit' | 'clean' | null
+  scanStartMs: number | null;
+  scanEndMs: number | null;
+  mrOpenedMs: number | null;
+  outcome: "hit" | "clean" | null;
 }
 
 export interface PipelineTimeline {
-  startMs: number | null
-  intelligenceEndMs: number | null
-  services: Record<string, ServiceTiming>
+  startMs: number | null;
+  intelligenceEndMs: number | null;
+  services: Record<string, ServiceTiming>;
 }
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL
-  ?? (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-    ? 'wss://ripple-orchestrator-mctjeick3a-nw.a.run.app/ws'
-    : 'ws://localhost:8000/ws')
+const WS_URL =
+  process.env.NEXT_PUBLIC_WS_URL ??
+  (typeof window !== "undefined" && window.location.hostname !== "localhost"
+    ? "wss://ripple-orchestrator-mctjeick3a-nw.a.run.app/ws"
+    : "ws://localhost:8000/ws");
 
 export function useRippleSocket() {
-  const [services, setServices] = useState<Map<string, ServiceState>>(new Map())
+  const [services, setServices] = useState<Map<string, ServiceState>>(
+    new Map(),
+  );
   const [summary, setSummary] = useState<ScanSummary>({
-    scanned: 0, hits: 0, clean: 0, mrsOpened: 0, connected: false, riskScore: null,
-    pipelineStartMs: null, pipelineEndMs: null,
-  })
+    scanned: 0,
+    hits: 0,
+    clean: 0,
+    mrsOpened: 0,
+    connected: false,
+    riskScore: null,
+    pipelineStartMs: null,
+    pipelineEndMs: null,
+  });
   const [timeline, setTimeline] = useState<PipelineTimeline>({
-    startMs: null, intelligenceEndMs: null, services: {},
-  })
-  const ws = useRef<WebSocket | null>(null)
-  const settled = useRef<Set<string>>(new Set())
+    startMs: null,
+    intelligenceEndMs: null,
+    services: {},
+  });
+  const ws = useRef<WebSocket | null>(null);
+  const settled = useRef<Set<string>>(new Set());
   // Deduplicate mr_opened by URL so double-connection or duplicate events don't inflate the counter
-  const settledMrUrls = useRef<Set<string>>(new Set())
+  const settledMrUrls = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    let destroyed = false
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    let destroyed = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
     function connect() {
-      if (destroyed) return
-      const socket = new WebSocket(WS_URL)
-      ws.current = socket
+      if (destroyed) return;
+      const socket = new WebSocket(WS_URL);
+      ws.current = socket;
 
       socket.onopen = () => {
-        if (destroyed) { socket.close(); return }
-        setSummary(s => ({ ...s, connected: true }))
-      }
+        if (destroyed) {
+          socket.close();
+          return;
+        }
+        setSummary((s) => ({ ...s, connected: true }));
+      };
 
       socket.onclose = () => {
-        setSummary(s => ({ ...s, connected: false }))
-        if (!destroyed) reconnectTimer = setTimeout(connect, 2000)
-      }
+        setSummary((s) => ({ ...s, connected: false }));
+        if (!destroyed) reconnectTimer = setTimeout(connect, 2000);
+      };
 
-      socket.onerror = () => socket.close()
+      socket.onerror = () => socket.close();
 
       socket.onmessage = (e) => {
         try {
-          const event = JSON.parse(e.data)
-          const svc: string = event.service
+          const event = JSON.parse(e.data);
+          const svc: string = event.service;
 
-          setServices(prev => {
-            const next = new Map(prev)
+          setServices((prev) => {
+            const next = new Map(prev);
             const current = next.get(svc) ?? {
-              status: 'idle' as ServiceStatus,
-              mrUrl: null, fileHit: null, confidence: null, timestamp: null,
-              riskScore: null, pattern: null, evaluatedOn: null, correctionIterations: null, incidentId: null,
-              feedbackOutcome: null, approvalPayload: null,
-            }
+              status: "idle" as ServiceStatus,
+              mrUrl: null,
+              fileHit: null,
+              confidence: null,
+              timestamp: null,
+              riskScore: null,
+              pattern: null,
+              evaluatedOn: null,
+              correctionIterations: null,
+              incidentId: null,
+              feedbackOutcome: null,
+              approvalPayload: null,
+            };
 
-            if (event.event === 'agent_started') {
-              const nowMs = Date.now()
-              next.set(svc, { ...current, status: 'scanning', timestamp: event.timestamp })
-              setSummary(s => ({ ...s, pipelineStartMs: s.pipelineStartMs ?? nowMs }))
-              setTimeline(t => ({
+            if (event.event === "agent_started") {
+              const nowMs = Date.now();
+              next.set(svc, {
+                ...current,
+                status: "scanning",
+                timestamp: event.timestamp,
+              });
+              setSummary((s) => ({
+                ...s,
+                pipelineStartMs: s.pipelineStartMs ?? nowMs,
+              }));
+              setTimeline((t) => ({
                 ...t,
                 startMs: t.startMs ?? nowMs,
                 services: {
                   ...t.services,
-                  [svc]: { ...(t.services[svc] ?? { scanStartMs: null, scanEndMs: null, mrOpenedMs: null, outcome: null }), scanStartMs: t.services[svc]?.scanStartMs ?? nowMs },
+                  [svc]: {
+                    ...(t.services[svc] ?? {
+                      scanStartMs: null,
+                      scanEndMs: null,
+                      mrOpenedMs: null,
+                      outcome: null,
+                    }),
+                    scanStartMs: t.services[svc]?.scanStartMs ?? nowMs,
+                  },
                 },
-              }))
-            } else if (event.event === 'hit_found') {
+              }));
+            } else if (event.event === "hit_found") {
               next.set(svc, {
-                status: 'hit',
+                status: "hit",
                 mrUrl: event.data?.mr_url ?? null,
                 fileHit: event.data?.file_path ?? null,
                 confidence: event.data?.confidence ?? null,
@@ -122,122 +166,190 @@ export function useRippleSocket() {
                 incidentId: null,
                 feedbackOutcome: null,
                 approvalPayload: null,
-              })
+              });
               if (!settled.current.has(svc)) {
-                settled.current.add(svc)
-                setSummary(s => {
-                  const newScanned = s.scanned + 1
-                  return { ...s, scanned: newScanned, hits: s.hits + 1,
-                    pipelineEndMs: s.pipelineEndMs }
-                })
+                settled.current.add(svc);
+                setSummary((s) => {
+                  const newScanned = s.scanned + 1;
+                  return {
+                    ...s,
+                    scanned: newScanned,
+                    hits: s.hits + 1,
+                    pipelineEndMs: s.pipelineEndMs,
+                  };
+                });
               }
-              setTimeline(t => ({
+              setTimeline((t) => ({
                 ...t,
-                services: { ...t.services, [svc]: { ...(t.services[svc] ?? { scanStartMs: null, scanEndMs: null, mrOpenedMs: null, outcome: null }), scanEndMs: Date.now(), outcome: 'hit' } },
-              }))
-            } else if (event.event === 'no_hit') {
-              next.set(svc, { ...current, status: 'clean', timestamp: event.timestamp })
-              if (!settled.current.has(svc)) {
-                settled.current.add(svc)
-                setSummary(s => {
-                  const newScanned = s.scanned + 1
-                  return { ...s, scanned: newScanned, clean: s.clean + 1,
-                    pipelineEndMs: s.pipelineEndMs }
-                })
-              }
-              setTimeline(t => ({
-                ...t,
-                services: { ...t.services, [svc]: { ...(t.services[svc] ?? { scanStartMs: null, scanEndMs: null, mrOpenedMs: null, outcome: null }), scanEndMs: Date.now(), outcome: 'clean' } },
-              }))
-            } else if (event.event === 'risk_scored') {
-              setSummary(s => ({ ...s, riskScore: event.risk_score ?? null }))
-              setTimeline(t => ({ ...t, intelligenceEndMs: Date.now() }))
-            } else if (event.event === 'requires_approval') {
+                services: {
+                  ...t.services,
+                  [svc]: {
+                    ...(t.services[svc] ?? {
+                      scanStartMs: null,
+                      scanEndMs: null,
+                      mrOpenedMs: null,
+                      outcome: null,
+                    }),
+                    scanEndMs: Date.now(),
+                    outcome: "hit",
+                  },
+                },
+              }));
+            } else if (event.event === "no_hit") {
               next.set(svc, {
                 ...current,
-                status: 'requires_approval',
+                status: "clean",
+                timestamp: event.timestamp,
+              });
+              if (!settled.current.has(svc)) {
+                settled.current.add(svc);
+                setSummary((s) => {
+                  const newScanned = s.scanned + 1;
+                  return {
+                    ...s,
+                    scanned: newScanned,
+                    clean: s.clean + 1,
+                    pipelineEndMs: s.pipelineEndMs,
+                  };
+                });
+              }
+              setTimeline((t) => ({
+                ...t,
+                services: {
+                  ...t.services,
+                  [svc]: {
+                    ...(t.services[svc] ?? {
+                      scanStartMs: null,
+                      scanEndMs: null,
+                      mrOpenedMs: null,
+                      outcome: null,
+                    }),
+                    scanEndMs: Date.now(),
+                    outcome: "clean",
+                  },
+                },
+              }));
+            } else if (event.event === "risk_scored") {
+              setSummary((s) => ({
+                ...s,
+                riskScore: event.risk_score ?? null,
+              }));
+              setTimeline((t) => ({ ...t, intelligenceEndMs: Date.now() }));
+            } else if (event.event === "requires_approval") {
+              next.set(svc, {
+                ...current,
+                status: "requires_approval",
                 riskScore: event.risk_score ?? null,
                 pattern: event.pattern ?? null,
                 timestamp: event.timestamp ?? null,
                 fileHit: event.file_path ?? null,
                 confidence: event.confidence ?? null,
                 approvalPayload: event.approval_payload ?? null,
-              })
-            } else if (event.event === 'feedback_recorded') {
-              // Only apply if the MR URL matches — prevents stale polling tasks
+              });
+            } else if (event.event === "feedback_recorded") {
+              // Only apply if the MR URL matches - prevents stale polling tasks
               // from a previous run tainting tiles in a new run
               if (!event.mr_url || event.mr_url === current.mrUrl) {
                 next.set(svc, {
                   ...current,
                   feedbackOutcome: event.outcome ?? null,
-                })
+                });
               }
-            } else if (event.event === 'mr_opened') {
+            } else if (event.event === "mr_opened") {
               next.set(svc, {
                 ...current,
-                status: 'hit',
+                status: "hit",
                 mrUrl: event.mr_url,
                 evaluatedOn: event.evaluated_on ?? null,
                 correctionIterations: event.correction_iterations ?? null,
                 incidentId: event.incident_id ?? null,
-              })
-              setTimeline(t => ({
+              });
+              setTimeline((t) => ({
                 ...t,
-                services: { ...t.services, [svc]: { ...(t.services[svc] ?? { scanStartMs: null, scanEndMs: null, mrOpenedMs: null, outcome: null }), mrOpenedMs: Date.now() } },
-              }))
+                services: {
+                  ...t.services,
+                  [svc]: {
+                    ...(t.services[svc] ?? {
+                      scanStartMs: null,
+                      scanEndMs: null,
+                      mrOpenedMs: null,
+                      outcome: null,
+                    }),
+                    mrOpenedMs: Date.now(),
+                  },
+                },
+              }));
               if (event.mr_url && !settledMrUrls.current.has(event.mr_url)) {
-                settledMrUrls.current.add(event.mr_url)
-                setSummary(s => {
-                  const newMrsOpened = s.mrsOpened + 1
-                  const allDone = s.scanned >= 12 && newMrsOpened >= s.hits
+                settledMrUrls.current.add(event.mr_url);
+                setSummary((s) => {
+                  const newMrsOpened = s.mrsOpened + 1;
+                  const allDone = s.scanned >= 12 && newMrsOpened >= s.hits;
                   return {
                     ...s,
                     mrsOpened: newMrsOpened,
                     pipelineEndMs: allDone ? Date.now() : s.pipelineEndMs,
-                  }
-                })
+                  };
+                });
               }
             }
 
-            return next
-          })
-        } catch { /* ignore malformed events */ }
-      }
+            return next;
+          });
+        } catch {
+          /* ignore malformed events */
+        }
+      };
     }
 
-    connect()
+    connect();
     return () => {
-      destroyed = true
-      if (reconnectTimer) clearTimeout(reconnectTimer)
-      ws.current?.close()
-    }
-  }, [])
+      destroyed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      ws.current?.close();
+    };
+  }, []);
 
   function reset() {
-    settled.current.clear()
-    settledMrUrls.current.clear()
-    setServices(new Map())
-    setSummary(s => ({ ...s, scanned: 0, hits: 0, clean: 0, mrsOpened: 0, riskScore: null, pipelineStartMs: null, pipelineEndMs: null }))
-    setTimeline({ startMs: null, intelligenceEndMs: null, services: {} })
+    settled.current.clear();
+    settledMrUrls.current.clear();
+    setServices(new Map());
+    setSummary((s) => ({
+      ...s,
+      scanned: 0,
+      hits: 0,
+      clean: 0,
+      mrsOpened: 0,
+      riskScore: null,
+      pipelineStartMs: null,
+      pipelineEndMs: null,
+    }));
+    setTimeline({ startMs: null, intelligenceEndMs: null, services: {} });
   }
 
   function markServiceSkipped(service: string) {
-    setServices(prev => {
-      const next = new Map(prev)
-      const existing = next.get(service)
-      if (existing) next.set(service, { ...existing, status: 'skipped' })
-      return next
-    })
+    setServices((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(service);
+      if (existing) next.set(service, { ...existing, status: "skipped" });
+      return next;
+    });
   }
 
   function markServiceApproving(service: string) {
-    setServices(prev => {
-      const next = new Map(prev)
-      const existing = next.get(service)
-      if (existing) next.set(service, { ...existing, status: 'approving' })
-      return next
-    })
+    setServices((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(service);
+      if (existing) next.set(service, { ...existing, status: "approving" });
+      return next;
+    });
   }
 
-  return { services, summary, timeline, reset, markServiceSkipped, markServiceApproving }
+  return {
+    services,
+    summary,
+    timeline,
+    reset,
+    markServiceSkipped,
+    markServiceApproving,
+  };
 }

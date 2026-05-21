@@ -10,6 +10,7 @@ Usage:
     python scripts/setup_demo.py --verify          # verify setup is complete
     python scripts/setup_demo.py --create --verify # create then verify
 """
+from dotenv import load_dotenv
 import argparse
 import os
 import sys
@@ -20,13 +21,13 @@ from pathlib import Path
 # Ensure repo root is on sys.path so intelligence/scanner packages are importable
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from dotenv import load_dotenv
 
 load_dotenv()
 
 GITLAB_BASE = "https://gitlab.com/api/v4"
 GITLAB_TOKEN = os.environ.get("GITLAB_TOKEN", "")
-GITLAB_NAMESPACE = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/ripple-demo")
+GITLAB_NAMESPACE = os.environ.get(
+    "DEMO_NAMESPACE", "cypherguy-group/ripple-demo")
 
 SERVICES_WITH_HITS = {
     "payment-service":      ("src/http/client.py",         'response = requests.get(f"{BASE_URL}/charge", headers=auth_headers)'),
@@ -68,7 +69,7 @@ def _clean_file_content(file_path: str) -> str:
 import httpx
 
 BASE_URL = "https://api.internal.example.com"
-DEFAULT_TIMEOUT = 5  # seconds — prevents thread pool exhaustion
+DEFAULT_TIMEOUT = 5  # seconds - prevents thread pool exhaustion
 
 def fetch_data(url, headers=None):
     response = requests.get(url, headers=headers, timeout=DEFAULT_TIMEOUT)
@@ -81,19 +82,22 @@ def _get_or_create_group(namespace: str) -> int | None:
     """Return group ID for the namespace, creating subgroups as needed."""
     parts = namespace.split("/")
     if len(parts) == 1:
-        r = httpx.get(f"{GITLAB_BASE}/groups/{parts[0]}", headers=HEADERS, timeout=10)
+        r = httpx.get(
+            f"{GITLAB_BASE}/groups/{parts[0]}", headers=HEADERS, timeout=10)
         return r.json().get("id") if r.status_code == 200 else None
 
     parent_path = parts[0]
     child_name = parts[1]
-    parent_r = httpx.get(f"{GITLAB_BASE}/groups/{parent_path}", headers=HEADERS, timeout=10)
+    parent_r = httpx.get(
+        f"{GITLAB_BASE}/groups/{parent_path}", headers=HEADERS, timeout=10)
     if parent_r.status_code != 200:
         print(f"  error: parent group '{parent_path}' not found")
         return None
     parent_id = parent_r.json()["id"]
 
     full_path = f"{parent_path}/{child_name}"
-    check_r = httpx.get(f"{GITLAB_BASE}/groups/{full_path.replace('/', '%2F')}", headers=HEADERS, timeout=10)
+    check_r = httpx.get(
+        f"{GITLAB_BASE}/groups/{full_path.replace('/', '%2F')}", headers=HEADERS, timeout=10)
     if check_r.status_code == 200:
         return check_r.json()["id"]
 
@@ -109,7 +113,8 @@ def _get_or_create_group(namespace: str) -> int | None:
 
 def _create_repo(namespace: str, service: str, namespace_id: int) -> bool:
     encoded = f"{namespace}/{service}".replace("/", "%2F")
-    check = httpx.get(f"{GITLAB_BASE}/projects/{encoded}", headers=HEADERS, timeout=10)
+    check = httpx.get(f"{GITLAB_BASE}/projects/{encoded}",
+                      headers=HEADERS, timeout=10)
     if check.status_code == 200:
         return True
 
@@ -190,7 +195,8 @@ def verify(namespace: str) -> bool:
     scars = db.scars.count_documents({})
     wins = db.wins.count_documents({})
     if scars < 2 or wins < 2:
-        errors.append(f"MongoDB seed incomplete: scars={scars} wins={wins} (need 2 each)")
+        errors.append(
+            f"MongoDB seed incomplete: scars={scars} wins={wins} (need 2 each)")
 
     from intelligence.tools.dynatrace import _call_tool
     dt_result = _call_tool(os.environ["DT_ENVIRONMENT"], os.environ["DT_PLATFORM_TOKEN"],
@@ -205,14 +211,18 @@ def verify(namespace: str) -> bool:
         return False
 
     dt_status = "accessible" if has_incident else "no incidents yet (expected for fresh trial)"
-    print(f"All 20 repos verified · 7 hits confirmed · MongoDB seeded (scars={scars}, wins={wins}) · Dynatrace: {dt_status}")
+    print(
+        f"All 20 repos verified · 7 hits confirmed · MongoDB seeded (scars={scars}, wins={wins}) · Dynatrace: {dt_status}")
     return True
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Ripple demo environment setup")
-    parser.add_argument("--create", action="store_true", help="Create demo repos")
-    parser.add_argument("--verify", action="store_true", help="Verify setup is complete")
+    parser = argparse.ArgumentParser(
+        description="Ripple demo environment setup")
+    parser.add_argument("--create", action="store_true",
+                        help="Create demo repos")
+    parser.add_argument("--verify", action="store_true",
+                        help="Verify setup is complete")
     parser.add_argument("--namespace", default=GITLAB_NAMESPACE,
                         help=f"GitLab namespace (default: {GITLAB_NAMESPACE})")
     args = parser.parse_args()

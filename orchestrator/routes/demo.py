@@ -25,7 +25,7 @@ _DEMO_PAYLOAD = {
 async def trigger_demo():
     """Intentionally public endpoint that fires the PulseCheck demo pipeline.
     Rate-limited to one trigger per 60 seconds to prevent cost abuse.
-    The webhook secret stays server-side — no secret is exposed in the client bundle."""
+    The webhook secret stays server-side - no secret is exposed in the client bundle."""
     global _last_trigger_time
     now = time.time()
     if _last_trigger_time is not None and (now - _last_trigger_time) < _COOLDOWN_SECONDS:

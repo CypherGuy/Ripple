@@ -27,7 +27,7 @@ def _ts() -> str:
 
 @router.post("/scan")
 async def scan(payload: ScanPayload):
-    # All 12 services scan simultaneously — semaphore removed.
+    # All 12 services scan simultaneously - semaphore removed.
     # Each service has its own 60s timeout, so the total pipeline time
     # is bounded by the slowest single service, not slowest * batches.
     async def scan_one(svc: ServiceEntry) -> list[dict]:

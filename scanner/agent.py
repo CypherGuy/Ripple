@@ -33,7 +33,8 @@ def _gemini_client():
 
 def _default_gemini(prompt: str) -> list[dict]:
     client = _gemini_client()
-    response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash", contents=prompt)
     text = response.text.strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
@@ -52,7 +53,7 @@ def _fetch_service_files(gitlab_namespace: str) -> dict:
 def call_scanner_adk(service: dict, pattern: str) -> list[dict]:
     """Scan a service for a dangerous pattern using an ADK LlmAgent with a GitLab FunctionTool.
 
-    The agent decides whether to fetch files and how to identify hits — genuine agentic tool use.
+    The agent decides whether to fetch files and how to identify hits - genuine agentic tool use.
     """
     agent = LlmAgent(
         name="ripple_scanner",
@@ -85,7 +86,8 @@ def call_scanner_adk(service: dict, pattern: str) -> list[dict]:
         f"{pattern}\n\n"
         "Use the file-reading tool to fetch the source files, then return all hits as a JSON array."
     )
-    message = genai_types.Content(role="user", parts=[genai_types.Part(text=prompt)])
+    message = genai_types.Content(
+        role="user", parts=[genai_types.Part(text=prompt)])
 
     text = ""
     for event in runner.run(user_id="system", session_id=str(uuid.uuid4()), new_message=message):
@@ -114,11 +116,12 @@ def scan_service(
         if _gemini_fn is None:
             # ADK path with 25s hard cap. If ADK finds hits, return immediately.
             # If ADK times out or returns 0, fall through to direct Gemini scan.
-            # Use executor without `with` — `with` calls shutdown(wait=True) on exit,
+            # Use executor without `with` - `with` calls shutdown(wait=True) on exit,
             # which blocks until the ADK thread finishes and defeats the timeout.
             ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
             try:
-                hits = ex.submit(call_scanner_adk, service, pattern).result(timeout=25)
+                hits = ex.submit(call_scanner_adk, service,
+                                 pattern).result(timeout=25)
             except Exception:
                 hits = []
             finally:
@@ -131,12 +134,14 @@ def scan_service(
             _gemini_fn = _default_gemini
 
         token = os.environ.get("GITLAB_TOKEN", "")
-        files = read_service_files(service["gitlab_namespace"], token, _files_override=_files_override)
+        files = read_service_files(
+            service["gitlab_namespace"], token, _files_override=_files_override)
 
         if not files:
             return []
 
-        files_text = "\n\n".join(f"=== {path} ===\n{content}" for path, content in files.items())
+        files_text = "\n\n".join(
+            f"=== {path} ===\n{content}" for path, content in files.items())
 
         span.set_attribute("files.count", len(files))
         hits = _scan_with_gemini(files_text, pattern, _gemini_fn)
@@ -152,7 +157,7 @@ PATTERN TO FIND: {pattern}
 
 IMPORTANT: Match the semantic risk, not the exact wording. For example, "HTTP call with no timeout"
 means any HTTP request (requests.get, httpx.get, urllib, etc.) that does not pass a timeout parameter.
-The function does not need to be async — synchronous functions are equally dangerous.
+The function does not need to be async - synchronous functions are equally dangerous.
 
 Do NOT flag HTTP calls that already pass a timeout argument (e.g. timeout=5, timeout=DEFAULT_TIMEOUT,
 timeout=(connect, read)). Only flag calls where timeout is completely absent.

@@ -2,6 +2,7 @@
 Creates 12 PulseCheck repos under cypherguy-group/pulsecheck and pushes real code.
 Run: python scripts/setup_pulsecheck.py
 """
+from dotenv import load_dotenv
 import os
 import sys
 import base64
@@ -9,7 +10,6 @@ import httpx
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from dotenv import load_dotenv
 load_dotenv()
 
 GITLAB_BASE = "https://gitlab.com/api/v4"
@@ -317,7 +317,7 @@ def notify(alert: Alert):
     """Send an alert to Slack."""
     emoji = ":red_circle:" if alert.severity == "critical" else ":warning:"
     payload = {
-        "text": f"{emoji} *{alert.service}* — {alert.message}",
+        "text": f"{emoji} *{alert.service}* - {alert.message}",
     }
     response = requests.post(SLACK_WEBHOOK_URL, json=payload)
     return {"sent": response.status_code == 200}
@@ -327,7 +327,7 @@ def notify(alert: Alert):
 def notify_resolve(alert: Alert):
     """Send a resolution notification to Slack."""
     payload = {
-        "text": f":white_check_mark: *{alert.service}* resolved — {alert.message}",
+        "text": f":white_check_mark: *{alert.service}* resolved - {alert.message}",
     }
     response = requests.post(SLACK_WEBHOOK_URL, json=payload)
     return {"sent": response.status_code == 200}
@@ -617,7 +617,7 @@ def create_project(name: str, description: str) -> int | None:
         pid = r.json()["id"]
         print(f"  Created {name} (id={pid})")
         return pid
-    # already exists — look it up
+    # already exists - look it up
     if r.status_code == 400:
         search = httpx.get(
             f"{GITLAB_BASE}/groups/{NAMESPACE_ID}/projects",
@@ -639,7 +639,8 @@ def push_file(project_id: int, path: str, content: str, message: str, branch: st
     r = httpx.post(
         f"{GITLAB_BASE}/projects/{project_id}/repository/files/{path.replace('/', '%2F')}",
         headers=HEADERS,
-        json={"branch": branch, "content": content, "commit_message": message, "encoding": "text"},
+        json={"branch": branch, "content": content,
+              "commit_message": message, "encoding": "text"},
         timeout=15,
     )
     if r.status_code in (200, 201):
@@ -648,7 +649,8 @@ def push_file(project_id: int, path: str, content: str, message: str, branch: st
     httpx.put(
         f"{GITLAB_BASE}/projects/{project_id}/repository/files/{path.replace('/', '%2F')}",
         headers=HEADERS,
-        json={"branch": branch, "content": content, "commit_message": message, "encoding": "text"},
+        json={"branch": branch, "content": content,
+              "commit_message": message, "encoding": "text"},
         timeout=15,
     )
 

@@ -9,6 +9,7 @@ Usage:
   python scripts/dynatrace_setup.py --step fetch-problem
   python scripts/dynatrace_setup.py --step patch-ripple --problem-id <ID>
 """
+from dotenv import load_dotenv
 import argparse
 import os
 import sys
@@ -21,14 +22,13 @@ import textwrap
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from dotenv import load_dotenv
 load_dotenv()
 
 DT_ENV = os.environ.get("DT_ENVIRONMENT", "")
 DT_TOKEN = os.environ.get("DT_PLATFORM_TOKEN", "")
 DT_OTEL_TOKEN = os.environ.get("DT_OTEL_TOKEN", "")
 DT_EVENTS_TOKEN = os.environ.get("DT_EVENTS_TOKEN", "")
-# Dynatrace OTLP endpoint — uses live.dynatrace.com (not apps.dynatrace.com)
+# Dynatrace OTLP endpoint - uses live.dynatrace.com (not apps.dynatrace.com)
 _tenant = DT_ENV.replace(".apps.dynatrace.com", "")
 DT_OTEL_ENDPOINT = f"https://{_tenant}.live.dynatrace.com/api/v2/otlp/v1/traces"
 SLOW_SERVER_PORT = 19999
@@ -43,7 +43,7 @@ SERVICES = {
     },
     "api-monitor": {
         "port": 9003,
-        "trigger_path": "/check/stripe",  # calls status.stripe.com — swap URL via env
+        "trigger_path": "/check/stripe",  # calls status.stripe.com - swap URL via env
         "hang_lib": "requests",
     },
     "github-monitor": {
@@ -184,7 +184,7 @@ def step_install():
 # ── Step: run ────────────────────────────────────────────────────────────────
 
 OTEL_BOOTSTRAP = textwrap.dedent(f"""\
-    # OpenTelemetry bootstrap — injected at top of every PulseCheck service
+    # OpenTelemetry bootstrap - injected at top of every PulseCheck service
     # Instruments requests + httpx automatically and exports spans to Dynatrace
     from opentelemetry import trace
     from opentelemetry.sdk.trace import TracerProvider
@@ -222,7 +222,8 @@ def step_run():
         env = os.environ.copy()
         env["MOCK_API_URL"] = f"http://localhost:{SLOW_SERVER_PORT}"
         proc = subprocess.Popen(
-            [sys.executable, "-m", "uvicorn", "main:app", "--port", str(port), "--host", "0.0.0.0"],
+            [sys.executable, "-m", "uvicorn", "main:app",
+                "--port", str(port), "--host", "0.0.0.0"],
             cwd=svc_dir,
             env=env,
             stdout=subprocess.DEVNULL,
@@ -240,25 +241,27 @@ def step_run():
             status = r.json().get("status", "?")
             print(f"  {name}: {status}")
         except Exception as e:
-            print(f"  {name}: ERROR — {e}")
+            print(f"  {name}: ERROR - {e}")
 
     pids = {name: proc.pid for name, _, proc in procs}
     (LOCAL_DIR / "pids.json").write_text(json.dumps(pids, indent=2))
     print(f"\nPIDs written to {LOCAL_DIR}/pids.json")
-    print("\nNext — start the slow server in a new terminal:")
+    print("\nNext - start the slow server in a new terminal:")
     print("  python scripts/dynatrace_setup.py --step slow-server")
 
 
 # ── Step: slow-server ────────────────────────────────────────────────────────
 
-SLOW_HOLD_SECONDS = 30  # hold then close — OTel span completes with error, gets exported
+SLOW_HOLD_SECONDS = 30  # hold then close - OTel span completes with error, gets exported
 
 
 def step_slow_server():
     print(f"=== Step 3: Slow Server on :{SLOW_SERVER_PORT} ===\n")
-    print(f"Holds each connection for {SLOW_HOLD_SECONDS}s then closes it abruptly.")
+    print(
+        f"Holds each connection for {SLOW_HOLD_SECONDS}s then closes it abruptly.")
     print("This produces a completed failed span that OTel exports to Dynatrace.")
-    print(f"\nListening on localhost:{SLOW_SERVER_PORT} — press Ctrl+C to stop.\n")
+    print(
+        f"\nListening on localhost:{SLOW_SERVER_PORT} - press Ctrl+C to stop.\n")
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -271,7 +274,8 @@ def step_slow_server():
         try:
             time.sleep(SLOW_HOLD_SECONDS)
             conn.close()
-            print(f"  Closed {addr} after {SLOW_HOLD_SECONDS}s (span will export to Dynatrace)")
+            print(
+                f"  Closed {addr} after {SLOW_HOLD_SECONDS}s (span will export to Dynatrace)")
         except Exception:
             pass
 
@@ -279,9 +283,11 @@ def step_slow_server():
         while True:
             conn, addr = server.accept()
             connections.append(conn)
-            t = threading.Thread(target=hold_then_close, args=(conn, addr), daemon=True)
+            t = threading.Thread(target=hold_then_close,
+                                 args=(conn, addr), daemon=True)
             t.start()
-            print(f"  Accepted {addr} — holding for {SLOW_HOLD_SECONDS}s (total: {len(connections)})")
+            print(
+                f"  Accepted {addr} - holding for {SLOW_HOLD_SECONDS}s (total: {len(connections)})")
     except KeyboardInterrupt:
         print(f"\nStopped. Total connections held: {len(connections)}")
         server.close()
@@ -291,7 +297,8 @@ def step_slow_server():
 
 def step_trigger():
     print("=== Step 4: Trigger the incident ===\n")
-    print(f"Calling each PulseCheck service with target=http://localhost:{SLOW_SERVER_PORT}")
+    print(
+        f"Calling each PulseCheck service with target=http://localhost:{SLOW_SERVER_PORT}")
     print("Each call will hang (no timeout). Dynatrace will capture slow outbound calls.\n")
 
     import httpx
@@ -299,7 +306,7 @@ def step_trigger():
     def call_with_timeout(name, port, path):
         try:
             # We set a long timeout here just to not block this script forever
-            # The *service* has no timeout — that's the bug Dynatrace captures
+            # The *service* has no timeout - that's the bug Dynatrace captures
             httpx.get(f"http://localhost:{port}{path}", timeout=30)
             print(f"  {name}: returned (unexpected)")
         except httpx.ReadTimeout:
@@ -311,14 +318,16 @@ def step_trigger():
     # For services with configurable URLs, trigger directly
     threads = []
     trigger_map = [
-        ("http-monitor",   9021, f"/check?target=http://localhost:{SLOW_SERVER_PORT}"),
+        ("http-monitor",   9021,
+         f"/check?target=http://localhost:{SLOW_SERVER_PORT}"),
         ("github-monitor", 9004, "/status"),   # uses MOCK_API_URL if set
         ("dns-checker",    9005, f"/resolve?domain=slow.internal"),
     ]
 
     print("Triggering hangs in parallel...\n")
     for name, port, path in trigger_map:
-        t = threading.Thread(target=call_with_timeout, args=(name, port, path), daemon=True)
+        t = threading.Thread(target=call_with_timeout,
+                             args=(name, port, path), daemon=True)
         t.start()
         threads.append(t)
 
@@ -352,7 +361,8 @@ def step_fetch_problem():
     import httpx
 
     MCP_URL = f"https://{DT_ENV}/platform-reserved/mcp-gateway/v0.1/servers/dynatrace-mcp/mcp"
-    headers = {"Authorization": f"Bearer {DT_TOKEN}", "Content-Type": "application/json"}
+    headers = {"Authorization": f"Bearer {DT_TOKEN}",
+               "Content-Type": "application/json"}
 
     # Query recent problems
     dql = "fetch dt.davis.problems | sort timestamp desc | limit 5"
@@ -370,7 +380,8 @@ def step_fetch_problem():
         text = item.get("text", "") if isinstance(item, dict) else ""
         if "Query result records:" in text:
             try:
-                records = json.loads(text.split("Query result records:")[-1].strip()) or []
+                records = json.loads(text.split(
+                    "Query result records:")[-1].strip()) or []
             except Exception:
                 pass
             break
@@ -386,14 +397,15 @@ def step_fetch_problem():
         pid = p.get("display_id") or p.get("problemId") or p.get("id", "?")
         title = p.get("title") or p.get("problemTitle") or "Unknown"
         duration = p.get("duration") or p.get("durationMinutes") or "?"
-        print(f"  [{i+1}] {pid} — {title} ({duration} min)")
+        print(f"  [{i+1}] {pid} - {title} ({duration} min)")
 
     print()
     best = records[0]
     pid = best.get("display_id") or best.get("problemId") or best.get("id")
     print(f"Most recent: {pid}")
     print("\nTo update Ripple with this problem ID, run:")
-    print(f"  python scripts/dynatrace_setup.py --step patch-ripple --problem-id {pid}")
+    print(
+        f"  python scripts/dynatrace_setup.py --step patch-ripple --problem-id {pid}")
 
 
 # ── Step: push-event ────────────────────────────────────────────────────────
@@ -406,7 +418,7 @@ def step_push_event():
     print("=== Step 5b: Push synthetic availability event to Dynatrace ===\n")
     import httpx
 
-    # The Events Ingest API v2 — requires 'events.ingest' scope on the token
+    # The Events Ingest API v2 - requires 'events.ingest' scope on the token
     EVENTS_URL = f"https://{_tenant}.live.dynatrace.com/api/v2/events/ingest"
     headers = {
         "Authorization": f"Api-Token {DT_EVENTS_TOKEN}",
@@ -415,7 +427,7 @@ def step_push_event():
 
     payload = {
         "eventType": "AVAILABILITY_EVENT",
-        "title": "PulseCheck ssl-monitor hung on slow cert check — cascade into latency-monitor and incident-manager",
+        "title": "PulseCheck ssl-monitor hung on slow cert check - cascade into latency-monitor and incident-manager",
         "entitySelector": "type(SERVICE)",
         "properties": {
             "dt.event.description": (
@@ -442,7 +454,7 @@ def step_push_event():
         print("Then run:")
         print("  python scripts/dynatrace_setup.py --step fetch-problem")
     else:
-        print(f"Error: {r.status_code} — {r.text}")
+        print(f"Error: {r.status_code} - {r.text}")
 
 
 # ── Step: patch-ripple ───────────────────────────────────────────────────────
@@ -452,7 +464,8 @@ def step_patch_ripple(problem_id: str):
     import httpx
 
     MCP_URL = f"https://{DT_ENV}/platform-reserved/mcp-gateway/v0.1/servers/dynatrace-mcp/mcp"
-    headers = {"Authorization": f"Bearer {DT_TOKEN}", "Content-Type": "application/json"}
+    headers = {"Authorization": f"Bearer {DT_TOKEN}",
+               "Content-Type": "application/json"}
 
     # Fetch problem details
     dql = f'fetch dt.davis.problems | filter display_id == "{problem_id}" | limit 1'
@@ -469,13 +482,15 @@ def step_patch_ripple(problem_id: str):
         text = item.get("text", "") if isinstance(item, dict) else ""
         if "Query result records:" in text:
             try:
-                records = json.loads(text.split("Query result records:")[-1].strip()) or []
+                records = json.loads(text.split(
+                    "Query result records:")[-1].strip()) or []
             except Exception:
                 pass
             break
 
     problem = records[0] if records else {}
-    duration = int(problem.get("duration") or problem.get("durationMinutes") or 47)
+    duration = int(problem.get("duration")
+                   or problem.get("durationMinutes") or 47)
     title = problem.get("title") or problem.get("problemTitle") or \
         "PulseCheck ssl-monitor hung on slow cert check"
 
@@ -484,7 +499,8 @@ def step_patch_ripple(problem_id: str):
     print(f"Duration: {duration} min\n")
 
     # Patch IncidentPanel.tsx
-    panel_path = Path(__file__).parent.parent / "dashboard" / "components" / "IncidentPanel.tsx"
+    panel_path = Path(__file__).parent.parent / "dashboard" / \
+        "components" / "IncidentPanel.tsx"
     code = panel_path.read_text()
 
     import re

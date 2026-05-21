@@ -86,7 +86,8 @@ def test_pipeline_calls_intelligence_with_diff():
 
     async def mock_scan(url, *, json, headers, timeout):
         r = MagicMock()
-        r.json.return_value = {"hits": MOCK_SCAN_HITS, "incident_context": MOCK_INTEL["incident_context"]}
+        r.json.return_value = {"hits": MOCK_SCAN_HITS,
+                               "incident_context": MOCK_INTEL["incident_context"]}
         return r
 
     async def mock_fix(url, *, json, headers, timeout):
@@ -95,6 +96,7 @@ def test_pipeline_calls_intelligence_with_diff():
         return r
 
     call_order = []
+
     async def mock_post(url, **kwargs):
         if "analyze" in url:
             call_order.append("analyze")
@@ -110,7 +112,8 @@ def test_pipeline_calls_intelligence_with_diff():
     mock_client = AsyncMock()
     mock_client.post = mock_post
 
-    results = asyncio.run(run_pipeline(WEBHOOK_PAYLOAD, "trace-123", _client=mock_client))
+    results = asyncio.run(run_pipeline(
+        WEBHOOK_PAYLOAD, "trace-123", _client=mock_client))
     assert call_order[0] == "analyze"
     assert "scan" in call_order
     assert "fix" in call_order
@@ -140,7 +143,8 @@ def test_pipeline_calls_fix_factory_once_per_hit():
     mock_client = AsyncMock()
     mock_client.post = mock_post
 
-    asyncio.run(run_pipeline(WEBHOOK_PAYLOAD, "trace-123", _client=mock_client))
+    asyncio.run(run_pipeline(WEBHOOK_PAYLOAD,
+                "trace-123", _client=mock_client))
     assert fix_call_count["n"] == 2
 
 
@@ -154,11 +158,13 @@ def test_pipeline_merges_webhook_incident_context_into_intelligence_response():
         r = MagicMock()
         if "analyze" in url:
             # Intelligence returns incident_context WITHOUT root_cause_summary
-            r.json.return_value = {**MOCK_INTEL, "incident_context": {"incident_id": "P-26051"}}
+            r.json.return_value = {
+                **MOCK_INTEL, "incident_context": {"incident_id": "P-26051"}}
         elif "scan" in url:
             r.json.return_value = {"hits": MOCK_SCAN_HITS}
         elif "fix" in url:
-            fix_incident_contexts.append(kwargs.get("json", {}).get("incident_context", {}))
+            fix_incident_contexts.append(kwargs.get(
+                "json", {}).get("incident_context", {}))
             r.json.return_value = MOCK_FIX
         elif "broadcast" in url:
             r.json.return_value = {"ok": True}
@@ -177,7 +183,8 @@ def test_pipeline_merges_webhook_incident_context_into_intelligence_response():
     assert len(fix_incident_contexts) == 1
     ctx = fix_incident_contexts[0]
     # root_cause_summary should be filled in from webhook since Intelligence didn't return it
-    assert ctx.get("root_cause_summary") == "ssl-monitor hung on slow cert check"
+    assert ctx.get(
+        "root_cause_summary") == "ssl-monitor hung on slow cert check"
     assert ctx.get("incident_id") == "P-26051"
 
 
@@ -199,7 +206,8 @@ def test_pipeline_deduplicates_hits_by_service():
                      "file_path": "src/clients/downstream.py"},
                     {**MOCK_SCAN_HITS[0], "service": "auth-service", "confidence": 0.7,
                      "file_path": "src/clients/upstream.py"},
-                    {**MOCK_SCAN_HITS[0], "service": "order-service", "confidence": 0.8},
+                    {**MOCK_SCAN_HITS[0],
+                        "service": "order-service", "confidence": 0.8},
                 ],
                 "incident_context": {},
             }
@@ -211,7 +219,8 @@ def test_pipeline_deduplicates_hits_by_service():
     mock_client = AsyncMock()
     mock_client.post = mock_post
 
-    asyncio.run(run_pipeline(WEBHOOK_PAYLOAD, "trace-123", _client=mock_client))
+    asyncio.run(run_pipeline(WEBHOOK_PAYLOAD,
+                "trace-123", _client=mock_client))
     # auth-service had 2 hits but should only trigger 1 Fix Factory call (highest confidence)
     assert fix_call_count["n"] == 2
 
@@ -231,7 +240,8 @@ def test_pipeline_returns_empty_fix_results_when_no_hits():
     mock_client = AsyncMock()
     mock_client.post = mock_post
 
-    results = asyncio.run(run_pipeline(WEBHOOK_PAYLOAD, "trace-123", _client=mock_client))
+    results = asyncio.run(run_pipeline(
+        WEBHOOK_PAYLOAD, "trace-123", _client=mock_client))
     assert results == []
 
 
@@ -248,7 +258,8 @@ def test_pipeline_broadcasts_mr_opened_when_fix_succeeds():
         elif "scan" in url:
             r.json.return_value = {"hits": MOCK_SCAN_HITS}
         elif "fix" in url:
-            r.json.return_value = {**MOCK_FIX, "mr_url": "https://gitlab.com/org/auth-service/-/merge_requests/1"}
+            r.json.return_value = {
+                **MOCK_FIX, "mr_url": "https://gitlab.com/org/auth-service/-/merge_requests/1"}
         elif "broadcast" in url:
             broadcast_calls.append(kwargs.get("json", {}))
             r.json.return_value = {"ok": True}
@@ -257,7 +268,8 @@ def test_pipeline_broadcasts_mr_opened_when_fix_succeeds():
     mock_client = AsyncMock()
     mock_client.post = mock_post
 
-    asyncio.run(run_pipeline(WEBHOOK_PAYLOAD, "trace-123", _client=mock_client))
+    asyncio.run(run_pipeline(WEBHOOK_PAYLOAD,
+                "trace-123", _client=mock_client))
 
     mr_events = [c for c in broadcast_calls if c.get("event") == "mr_opened"]
     assert len(mr_events) == 1
@@ -275,8 +287,10 @@ def test_fetch_services_from_gitlab_returns_list():
     import asyncio
 
     fake_projects = [
-        {"name": "ssl-monitor", "path": "ssl-monitor", "namespace": {"full_path": "mygroup/myproject"}},
-        {"name": "api-monitor", "path": "api-monitor", "namespace": {"full_path": "mygroup/myproject"}},
+        {"name": "ssl-monitor", "path": "ssl-monitor",
+            "namespace": {"full_path": "mygroup/myproject"}},
+        {"name": "api-monitor", "path": "api-monitor",
+            "namespace": {"full_path": "mygroup/myproject"}},
     ]
 
     async def mock_get(url, **kwargs):
@@ -288,7 +302,8 @@ def test_fetch_services_from_gitlab_returns_list():
     mock_client = AsyncMock()
     mock_client.get = mock_get
 
-    result = asyncio.run(fetch_services_from_gitlab("mygroup/myproject", "fake-token", mock_client))
+    result = asyncio.run(fetch_services_from_gitlab(
+        "mygroup/myproject", "fake-token", mock_client))
     assert len(result) == 2
     assert result[0]["name"] == "ssl-monitor"
     assert result[0]["gitlab_namespace"] == "mygroup/myproject/ssl-monitor"
@@ -306,7 +321,8 @@ def test_fetch_services_from_gitlab_falls_back_on_error():
     mock_client = AsyncMock()
     mock_client.get = mock_get
 
-    result = asyncio.run(fetch_services_from_gitlab("mygroup/myproject", "fake-token", mock_client))
+    result = asyncio.run(fetch_services_from_gitlab(
+        "mygroup/myproject", "fake-token", mock_client))
     assert result == get_service_list()
 
 
@@ -324,7 +340,8 @@ def test_fetch_services_from_gitlab_falls_back_on_non_200():
     mock_client = AsyncMock()
     mock_client.get = mock_get
 
-    result = asyncio.run(fetch_services_from_gitlab("bad/namespace", "fake-token", mock_client))
+    result = asyncio.run(fetch_services_from_gitlab(
+        "bad/namespace", "fake-token", mock_client))
     assert result == get_service_list()
 
 
@@ -334,7 +351,8 @@ def test_pipeline_uses_dynamic_service_list():
     import asyncio
 
     dynamic_services = [
-        {"name": "my-svc", "repo": "org/proj/my-svc", "gitlab_namespace": "org/proj/my-svc"},
+        {"name": "my-svc", "repo": "org/proj/my-svc",
+            "gitlab_namespace": "org/proj/my-svc"},
     ]
     scan_payloads = []
 
@@ -354,7 +372,8 @@ def test_pipeline_uses_dynamic_service_list():
 
     with patch("orchestrator.pipeline.fetch_services_from_gitlab", new_callable=AsyncMock) as mock_fetch:
         mock_fetch.return_value = dynamic_services
-        asyncio.run(run_pipeline(WEBHOOK_PAYLOAD, "trace-x", _client=mock_client))
+        asyncio.run(run_pipeline(WEBHOOK_PAYLOAD,
+                    "trace-x", _client=mock_client))
 
     mock_fetch.assert_called_once()
     assert len(scan_payloads) == 1
@@ -362,7 +381,7 @@ def test_pipeline_uses_dynamic_service_list():
 
 
 # ---------------------------------------------------------------------------
-# Item 10 — Exception leaking: pipeline must not expose internal URLs
+# Item 10 - Exception leaking: pipeline must not expose internal URLs
 # ---------------------------------------------------------------------------
 
 def test_pipeline_falls_back_gracefully_on_intelligence_failure(client):
@@ -379,7 +398,7 @@ def test_pipeline_falls_back_gracefully_on_intelligence_failure(client):
     mock_client.post = failing_post
     mock_client.aclose = AsyncMock()
 
-    # Pipeline should not raise — it falls back and returns an empty list when
+    # Pipeline should not raise - it falls back and returns an empty list when
     # all downstream calls also fail (scanner/fix-factory unreachable).
     result = asyncio.run(run_pipeline(
         {"pr_id": "t", "diff": "HTTP call without timeout"},
@@ -390,7 +409,7 @@ def test_pipeline_falls_back_gracefully_on_intelligence_failure(client):
 
 
 # ---------------------------------------------------------------------------
-# Item 11 — WebSocket CORS: reject connections from unknown origins
+# Item 11 - WebSocket CORS: reject connections from unknown origins
 # ---------------------------------------------------------------------------
 
 def test_websocket_rejects_unknown_origin(client):
@@ -399,8 +418,9 @@ def test_websocket_rejects_unknown_origin(client):
     os.environ["DASHBOARD_URL"] = "https://ripple-dashboard-105645459605.europe-west2.run.app"
     try:
         with client.websocket_connect("/ws", headers={"origin": "https://evil.com"}) as ws:
-            # Should have been closed — if we get here the check isn't enforced
-            pytest.fail("Connection from unknown origin should have been rejected")
+            # Should have been closed - if we get here the check isn't enforced
+            pytest.fail(
+                "Connection from unknown origin should have been rejected")
     except Exception:
         pass  # closed as expected
 
@@ -422,20 +442,22 @@ def test_websocket_accepts_localhost_origin(client):
 
 
 # ---------------------------------------------------------------------------
-# GitLab MR status polling — automatic feedback loop
+# GitLab MR status polling - automatic feedback loop
 # ---------------------------------------------------------------------------
 
 def test_parse_mr_url_extracts_namespace_and_iid():
     """parse_mr_url returns (namespace, iid) from a GitLab MR URL."""
     from orchestrator.pipeline import parse_mr_url
-    ns, iid = parse_mr_url("https://gitlab.com/cypherguy-group/pulsecheck/ssl-monitor/-/merge_requests/5")
+    ns, iid = parse_mr_url(
+        "https://gitlab.com/cypherguy-group/pulsecheck/ssl-monitor/-/merge_requests/5")
     assert ns == "cypherguy-group/pulsecheck/ssl-monitor"
     assert iid == "5"
 
 
 def test_parse_mr_url_handles_different_iids():
     from orchestrator.pipeline import parse_mr_url
-    ns, iid = parse_mr_url("https://gitlab.com/org/proj/svc/-/merge_requests/123")
+    ns, iid = parse_mr_url(
+        "https://gitlab.com/org/proj/svc/-/merge_requests/123")
     assert ns == "org/proj/svc"
     assert iid == "123"
 
@@ -477,7 +499,8 @@ def test_poll_mr_status_records_win_when_merged():
         mock_record.assert_called_once()
         assert mock_record.call_args[1]["outcome"] == "merged"
 
-    feedback_events = [b for b in calls["broadcast"] if b.get("event") == "feedback_recorded"]
+    feedback_events = [b for b in calls["broadcast"]
+                       if b.get("event") == "feedback_recorded"]
     assert len(feedback_events) == 1
     assert feedback_events[0]["outcome"] == "merged"
     assert feedback_events[0]["service"] == "ssl-monitor"

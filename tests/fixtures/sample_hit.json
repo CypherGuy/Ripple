@@ -6,7 +6,7 @@
   ],
   "incident_context": {
     "incident_id": "DT-4821",
-    "title": "Payment service cascade failure — no timeout on HTTP client",
+    "title": "Payment service cascade failure - no timeout on HTTP client",
     "duration_minutes": 47,
     "estimated_cost": "£23,000",
     "root_cause_summary": "HTTP client with no timeout caused thread pool exhaustion under load.",
