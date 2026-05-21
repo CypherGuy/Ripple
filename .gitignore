@@ -17,3 +17,4 @@ dashboard/.next/
 .incident_context.json
 .worktrees/*.log
 dynatrace-managed-mcp.log
+CLAUDE.md
