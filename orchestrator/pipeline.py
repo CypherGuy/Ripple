@@ -235,8 +235,12 @@ async def run_pipeline(
         try:
             intel_r = await _client.post(
                 f"{INTELLIGENCE_URL}/analyze",
-                json={"pr_id": payload["pr_id"], "repo": payload.get(
-                    "repo", ""), "diff": payload.get("diff", "")},
+                json={
+                    "pr_id": payload["pr_id"],
+                    "repo": payload.get("repo", ""),
+                    "diff": payload.get("diff", ""),
+                    "incident_context": payload.get("incident_context"),
+                },
                 headers=headers,
                 timeout=120,
             )

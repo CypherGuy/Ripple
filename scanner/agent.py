@@ -116,7 +116,7 @@ def scan_service(
         if _gemini_fn is None:
             # ADK path with 25s hard cap. If ADK returns hits, return them immediately.
             # If ADK returns [] for any reason (timeout, error, or genuine clean miss),
-            # fall through to direct Gemini — ADK misses hits often enough that Gemini
+            # fall through to direct Gemini - ADK misses hits often enough that Gemini
             # is the authoritative scanner. The thread pool in scan.py ensures all
             # services run in parallel, so the double-scan cost is bounded by the
             # slowest single service rather than multiplied across batches.

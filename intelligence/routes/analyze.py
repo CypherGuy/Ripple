@@ -14,6 +14,7 @@ class AnalyzePayload(BaseModel):
     pr_id: str
     repo: str | None = None
     diff: str = Field(max_length=65536)
+    incident_context: dict | None = None
 
 
 @router.post("/analyze")
@@ -22,6 +23,13 @@ async def analyze(payload: AnalyzePayload):
     token = os.environ["DT_PLATFORM_TOKEN"]
 
     incidents = fetch_incident_history(env, token, payload.diff)
+
+    # When Dynatrace returns no incidents but the webhook supplied incident_context,
+    # use it as a synthetic incident so the severity floor fires correctly.
+    # Without this, a thin demo diff returns incidents=[] and the floor never applies.
+    if not incidents and payload.incident_context:
+        incidents = [payload.incident_context]
+
     result = extract_pattern(payload.diff, incidents)
 
     wins = find_similar_wins(result["pattern"])

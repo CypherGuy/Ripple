@@ -29,16 +29,18 @@ INDEX_DEF = {
 def create_index(col):
     existing = [idx["name"] for idx in col.list_search_indexes()]
     if INDEX_NAME in existing:
-        print(f"  [{col.name}] index '{INDEX_NAME}' already exists — skipping")
+        print(f"  [{col.name}] index '{INDEX_NAME}' already exists - skipping")
         return
 
-    model = SearchIndexModel(definition=INDEX_DEF, name=INDEX_NAME, type="vectorSearch")
+    model = SearchIndexModel(definition=INDEX_DEF,
+                             name=INDEX_NAME, type="vectorSearch")
     col.create_search_index(model=model)
-    print(f"  [{col.name}] index creation requested — building asynchronously")
+    print(f"  [{col.name}] index creation requested - building asynchronously")
 
 
 def wait_for_ready(col, timeout=120):
-    print(f"  [{col.name}] waiting for index to become READY...", end="", flush=True)
+    print(f"  [{col.name}] waiting for index to become READY...",
+          end="", flush=True)
     deadline = time.time() + timeout
     while time.time() < deadline:
         for idx in col.list_search_indexes():
@@ -67,7 +69,8 @@ if __name__ == "__main__":
             create_index(col)
         except Exception as e:
             print(f"  [{name}] ERROR: {e}")
-            print("  Is this an M10+ Atlas cluster? Free tier (M0) does not support vector search.")
+            print(
+                "  Is this an M10+ Atlas cluster? Free tier (M0) does not support vector search.")
             sys.exit(1)
 
     print("\nWaiting for indexes to become ready...")

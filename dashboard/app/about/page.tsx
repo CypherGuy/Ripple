@@ -351,8 +351,8 @@ export default function About() {
               Architecture
             </h2>
             <p className="text-sm text-ripple-subtle max-w-2xl">
-              Four FastAPI microservices communicating via agent-to-agent HTTP calls,
-              orchestrated by Google ADK with Gemini 3 Flash. Deployed on
+              Four FastAPI microservices communicating via agent-to-agent HTTP
+              calls, orchestrated by Google ADK with Gemini 3 Flash. Deployed on
               Cloud Run (London). Scanning and fixing overlap: the moment a
               service reports a hit, Fix Factory starts on it while remaining
               services are still scanning.
@@ -590,11 +590,12 @@ export default function About() {
                 <span className="font-mono text-ripple-accent">P-26051</span>:{" "}
                 <em>ssl-monitor</em> hung on a slow certificate check with no
                 HTTP timeout. A 47-minute outage, £23,000 estimated cost. Ripple
-                finds that same pattern across all 12 services and opens fix MRs
-                before anything reaches production. The architecture is
-                pattern-agnostic: the same pipeline works for any
-                incident-grounded pattern: missing retry logic, SQL queries
-                without indexes, race conditions in async handlers.
+                finds that same pattern across 8 of the 12 services and opens
+                fix MRs before anything reaches production - the other 4 already
+                have timeouts configured. The architecture is pattern-agnostic:
+                the same pipeline works for any incident-grounded pattern:
+                missing retry logic, SQL queries without indexes, race
+                conditions in async handlers.
               </p>
             </div>
           </div>

@@ -12,7 +12,14 @@ _last_trigger_time: float | None = None
 _DEMO_PAYLOAD = {
     "pr_id": "demo-run",
     "repo": "cypherguy-group/pulsecheck/ssl-monitor",
-    "diff": "@@ -12 +12 @@ response = httpx.get(target_url)",
+    "diff": (
+        "@@ -10,6 +10,9 @@ def _check_ssl(target_url):\n"
+        "+    response = httpx.get(target_url)\n"
+        "+    cert = response.json().get('cert')\n"
+        "+    return cert\n"
+        " \n"
+        " def monitor():"
+    ),
     "incident_context": {
         "incident_id": "P-26051",
         "duration_minutes": 47,

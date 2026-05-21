@@ -29,7 +29,7 @@ One PR fires the pipeline. Twelve services are scanned in parallel. Fix MRs appe
 
 ## Demo Environment
 
-The demo runs against **PulseCheck**, a real 12-service Python monitoring platform on GitLab. The incident is **P-26051**: a 47-minute outage caused by `ssl-monitor` hanging on a slow certificate check with no HTTP timeout. Ripple finds that same pattern across 8 of the 12 services and opens fix MRs before anything reaches production — the other 4 already have timeouts configured.
+The demo runs against **PulseCheck**, a real 12-service Python monitoring platform on GitLab. The incident is **P-26051**: a 47-minute outage caused by `ssl-monitor` hanging on a slow certificate check with no HTTP timeout. Ripple finds that same pattern across 8 of the 12 services and opens fix MRs before anything reaches production - the other 4 already have timeouts configured.
 
 **Generalisation:** Ripple's architecture is pattern-agnostic. Timeouts were chosen because they caused the demo incident, not because they are the only pattern. The same pipeline works for any incident-grounded pattern: SQL queries missing indexes, race conditions in async handlers, missing retry logic on third-party calls. Any engineering team with a monitoring platform and a git-based workflow is a potential user. Eight services fixed in one pipeline run across a 12-service codebase; the same architecture scales to 200.
 
@@ -242,7 +242,7 @@ Builds via Cloud Build, deploys to `europe-west2`. All secrets are pulled from S
 | Layer           | Technology                                                 |
 | --------------- | ---------------------------------------------------------- |
 | Agent framework | Google ADK (`LlmAgent`, `FunctionTool`, `Runner`)          |
-| Model           | Gemini 3 Flash (via ADK)                                 |
+| Model           | Gemini 3 Flash (via ADK)                                   |
 | Observability   | OpenTelemetry to Dynatrace (`jfr54188.live.dynatrace.com`) |
 | Primary MCP     | Dynatrace (`query-problems`, `execute-dql`)                |
 | Secondary       | GitLab REST API                                            |

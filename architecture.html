@@ -29,7 +29,7 @@
     }
 
     .container {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
     }
 
@@ -50,6 +50,7 @@
       background: #34d399;
       border-radius: 50%;
       animation: pulse 2s infinite;
+      flex-shrink: 0;
     }
 
     @keyframes pulse {
@@ -86,7 +87,7 @@
 
     svg {
       width: 100%;
-      min-width: 900px;
+      min-width: 960px;
       display: block;
     }
 
@@ -242,29 +243,30 @@
             title="Export options" aria-label="Export options">⋯</button>
         </div>
       </div>
-      <p class="subtitle">Google Cloud Rapid Agent Hackathon · Dynatrace Track · Google ADK + Gemini · June 2026</p>
+      <p class="subtitle">Google Cloud Rapid Agent Hackathon · Dynatrace Track · Google ADK + Gemini 3 Flash · June 2026
+      </p>
     </div>
 
     <div class="diagram-container">
-      <svg viewBox="0 0 780 770">
+      <svg viewBox="0 0 860 820">
         <defs>
           <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0, 8 3, 0 6" fill="#64748b" />
+            <polygon points="0 0,8 3,0 6" fill="#64748b" />
           </marker>
-          <marker id="arr-emerald" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0, 8 3, 0 6" fill="#34d399" />
+          <marker id="arr-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0,8 3,0 6" fill="#34d399" />
           </marker>
           <marker id="arr-cyan" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0, 8 3, 0 6" fill="#22d3ee" />
+            <polygon points="0 0,8 3,0 6" fill="#22d3ee" />
           </marker>
           <marker id="arr-rose" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0, 8 3, 0 6" fill="#fb7185" />
+            <polygon points="0 0,8 3,0 6" fill="#fb7185" />
           </marker>
           <marker id="arr-amber" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0, 8 3, 0 6" fill="#fbbf24" />
+            <polygon points="0 0,8 3,0 6" fill="#fbbf24" />
           </marker>
           <marker id="arr-violet" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0, 8 3, 0 6" fill="#a78bfa" />
+            <polygon points="0 0,8 3,0 6" fill="#a78bfa" />
           </marker>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5" />
@@ -274,192 +276,260 @@
         <!-- Background -->
         <rect width="100%" height="100%" fill="url(#grid)" />
 
-        <!-- ===== ARROWS (drawn first, behind all boxes) ===== -->
+        <!-- ===================== ARROWS (drawn before boxes) ===================== -->
 
-        <!-- Webhook → Orchestrator -->
-        <line x1="125" y1="142" x2="173" y2="124" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)" />
-        <text x="140" y="127" fill="#94a3b8" font-size="8" font-weight="500" text-anchor="middle">webhook</text>
+        <!-- Entry → Orchestrator -->
+        <line x1="135" y1="134" x2="178" y2="120" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arr)" />
+        <text x="150" y="110" fill="#e2e8f0" font-size="8.5" font-weight="600" text-anchor="middle"
+          font-family="JetBrains Mono">webhook</text>
 
-        <!-- Orchestrator → Next.js Dashboard (WebSocket, dashed cyan) -->
-        <line x1="367" y1="114" x2="576" y2="114" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="5,3"
+        <!-- Orchestrator ↔ Dashboard (WebSocket) -->
+        <line x1="372" y1="110" x2="600" y2="110" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="5,3"
           marker-end="url(#arr-cyan)" />
-        <text x="471" y="108" fill="#22d3ee" font-size="7.5" text-anchor="middle">WebSocket</text>
-        <!-- Dashboard → Orchestrator (approve/skip) -->
-        <line x1="576" y1="126" x2="367" y2="126" stroke="#22d3ee" stroke-width="1" stroke-dasharray="3,2"
-          marker-end="url(#arr-cyan)" opacity="0.6" />
-        <text x="471" y="138" fill="#22d3ee" font-size="7" text-anchor="middle" opacity="0.7">approve / skip</text>
+        <text x="486" y="103" fill="#22d3ee" font-size="7.5" text-anchor="middle" font-family="JetBrains Mono">WebSocket
+          stream</text>
+        <line x1="600" y1="122" x2="372" y2="122" stroke="#22d3ee" stroke-width="1" stroke-dasharray="3,2"
+          marker-end="url(#arr-cyan)" opacity="0.55" />
+        <text x="486" y="135" fill="#22d3ee" font-size="7" text-anchor="middle" font-family="JetBrains Mono"
+          opacity="0.7">approve / skip</text>
 
         <!-- A2A: Orchestrator → Intelligence -->
-        <line x1="270" y1="162" x2="270" y2="238" stroke="#34d399" stroke-width="2" marker-end="url(#arr-emerald)" />
-        <text x="284" y="204" fill="#34d399" font-size="8">A2A</text>
+        <line x1="275" y1="165" x2="275" y2="248" stroke="#34d399" stroke-width="2" marker-end="url(#arr-green)" />
+        <text x="290" y="211" fill="#34d399" font-size="8" font-family="JetBrains Mono">A2A</text>
 
         <!-- A2A: Intelligence → Scanner -->
-        <line x1="270" y1="324" x2="270" y2="410" stroke="#34d399" stroke-width="2" marker-end="url(#arr-emerald)" />
-        <text x="284" y="371" fill="#34d399" font-size="8">A2A</text>
+        <line x1="275" y1="338" x2="275" y2="418" stroke="#34d399" stroke-width="2" marker-end="url(#arr-green)" />
+        <text x="290" y="382" fill="#34d399" font-size="8" font-family="JetBrains Mono">A2A</text>
+        <text x="290" y="393" fill="#34d399" font-size="7" font-family="JetBrains Mono">per-hit</text>
 
         <!-- A2A: Scanner → Fix Factory -->
-        <line x1="270" y1="499" x2="270" y2="580" stroke="#34d399" stroke-width="2" marker-end="url(#arr-emerald)" />
-        <text x="284" y="543" fill="#34d399" font-size="8">A2A</text>
+        <line x1="275" y1="512" x2="275" y2="590" stroke="#34d399" stroke-width="2" marker-end="url(#arr-green)" />
+        <text x="290" y="555" fill="#34d399" font-size="8" font-family="JetBrains Mono">A2A</text>
+        <text x="290" y="566" fill="#34d399" font-size="7" font-family="JetBrains Mono">hits list</text>
 
-        <!-- Intelligence → Dynatrace MCP -->
-        <line x1="367" y1="281" x2="576" y2="281" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arr-rose)" />
-        <text x="471" y="274" fill="#fb7185" font-size="7.5" text-anchor="middle">incident data</text>
+        <!-- Intelligence → Dynatrace (incident data) -->
+        <line x1="372" y1="288" x2="598" y2="288" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arr-rose)" />
+        <text x="485" y="281" fill="#fb7185" font-size="7.5" text-anchor="middle"
+          font-family="JetBrains Mono">query-problems · execute-dql</text>
 
-        <!-- Scanner → GitLab MCP (read codebase) -->
-        <line x1="367" y1="450" x2="576" y2="463" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arr-amber)" />
-        <text x="471" y="444" fill="#fbbf24" font-size="7.5" text-anchor="middle">read codebase</text>
+        <!-- Scanner → GitLab REST API (read codebase) -->
+        <line x1="372" y1="463" x2="598" y2="468" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arr-amber)" />
+        <text x="485" y="456" fill="#fbbf24" font-size="7.5" text-anchor="middle" font-family="JetBrains Mono">read
+          source files</text>
 
-        <!-- Fix Factory → GitLab MCP (open MRs), L-shaped path -->
-        <path d="M 367 606 L 548 606 L 548 478 L 576 478" fill="none" stroke="#fbbf24" stroke-width="1.5"
+        <!-- Fix Factory → GitLab REST API (open MRs) -->
+        <path d="M 372 630 L 558 630 L 558 488 L 598 488" fill="none" stroke="#fbbf24" stroke-width="1.5"
           marker-end="url(#arr-amber)" />
-        <text x="450" y="597" fill="#fbbf24" font-size="7.5">open fix MRs</text>
+        <text x="455" y="621" fill="#fbbf24" font-size="7.5" font-family="JetBrains Mono">open fix MRs</text>
 
         <!-- Fix Factory → MongoDB Atlas -->
-        <line x1="367" y1="648" x2="576" y2="636" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr-violet)" />
-        <text x="471" y="636" fill="#a78bfa" font-size="7.5" text-anchor="middle">store outcomes</text>
+        <line x1="372" y1="668" x2="598" y2="648" stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr-violet)" />
+        <text x="485" y="648" fill="#a78bfa" font-size="7.5" text-anchor="middle" font-family="JetBrains Mono">store
+          outcomes</text>
 
-        <!-- Fix Factory → Dynatrace MCP (evaluator fetches traces to validate fixes) -->
-        <path d="M 365 662 L 562 662 L 562 300 L 578 300" fill="none" stroke="#fb7185" stroke-width="1.2"
+        <!-- Fix Factory evaluator → Dynatrace (re-fetch traces to validate fix) -->
+        <path d="M 370 680 L 572 680 L 572 308 L 600 308" fill="none" stroke="#fb7185" stroke-width="1.2"
           stroke-dasharray="4,3" marker-end="url(#arr-rose)" />
-        <text x="463" y="656" fill="#fb7185" font-size="7">eval traces</text>
+        <text x="462" y="673" fill="#fb7185" font-size="7" font-family="JetBrains Mono">eval traces (execute-dql)</text>
 
-        <!-- OTel spans exported from all services → Dynatrace (OTLP) -->
-        <line x1="530" y1="185" x2="578" y2="255" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,2"
+        <!-- OTel spans → Dynatrace (from all services via OTLP) -->
+        <line x1="540" y1="190" x2="598" y2="265" stroke="#fb7185" stroke-width="1" stroke-dasharray="3,2"
           marker-end="url(#arr-rose)" opacity="0.6" />
-        <text x="545" y="216" fill="#fb7185" font-size="7" text-anchor="middle" opacity="0.8">OTel spans</text>
+        <text x="556" y="224" fill="#fb7185" font-size="7" text-anchor="middle" font-family="JetBrains Mono"
+          opacity="0.8">OTel spans</text>
+        <text x="556" y="234" fill="#fb7185" font-size="7" text-anchor="middle" font-family="JetBrains Mono"
+          opacity="0.8">(OTLP)</text>
 
-        <!-- ===== GOOGLE CLOUD RUN BOUNDARY ===== -->
-        <rect x="145" y="48" width="385" height="680" rx="12" fill="rgba(251,191,36,0.04)" stroke="#fbbf24"
+        <!-- Intelligence → MongoDB (check previous scans) -->
+        <path d="M 372 315 L 580 315 L 580 608 L 600 608" fill="none" stroke="#a78bfa" stroke-width="1"
+          stroke-dasharray="3,2" marker-end="url(#arr-violet)" opacity="0.6" />
+        <text x="464" y="309" fill="#a78bfa" font-size="7" text-anchor="middle" font-family="JetBrains Mono"
+          opacity="0.7">prev scans</text>
+
+        <!-- ===================== GOOGLE CLOUD RUN BOUNDARY ===================== -->
+        <rect x="152" y="48" width="395" height="700" rx="12" fill="rgba(251,191,36,0.03)" stroke="#fbbf24"
           stroke-width="1" stroke-dasharray="8,4" />
-        <text x="157" y="65" fill="#fbbf24" font-size="9.5" font-weight="600">Google Cloud Run</text>
+        <text x="164" y="65" fill="#fbbf24" font-size="9.5" font-weight="600" font-family="JetBrains Mono">Google Cloud
+          Run · europe-west2</text>
 
-        <!-- External services label -->
-        <text x="580" y="42" fill="#475569" font-size="8.5" font-weight="500">External Services</text>
+        <!-- External label -->
+        <text x="604" y="42" fill="#475569" font-size="8.5" font-weight="500" font-family="JetBrains Mono">External
+          Services</text>
 
-        <!-- ===== Gemini 3 FLASH / AI STUDIO (top-right, external) ===== -->
-        <rect x="578" y="48" width="152" height="38" rx="6" fill="#0f172a" />
-        <rect x="578" y="48" width="152" height="38" rx="6" fill="rgba(6,78,59,0.3)" stroke="#34d399"
+        <!-- ===================== GEMINI 3 FLASH ===================== -->
+        <rect x="600" y="48" width="160" height="40" rx="6" fill="#0f172a" />
+        <rect x="600" y="48" width="160" height="40" rx="6" fill="rgba(6,78,59,0.3)" stroke="#34d399"
           stroke-width="1.5" />
-        <text x="654" y="63" fill="white" font-size="10" font-weight="600" text-anchor="middle">Gemini 3 Flash</text>
-        <text x="654" y="77" fill="#94a3b8" font-size="8" text-anchor="middle">AI Studio · all four services</text>
+        <text x="680" y="64" fill="white" font-size="10" font-weight="600" text-anchor="middle"
+          font-family="JetBrains Mono">Gemini 3 Flash</text>
+        <text x="680" y="79" fill="#94a3b8" font-size="7.5" text-anchor="middle" font-family="JetBrains Mono">AI Studio
+          · all four services</text>
 
-        <!-- ===== NEXT.JS DASHBOARD ===== -->
-        <rect x="578" y="92" width="152" height="72" rx="6" fill="#0f172a" />
-        <rect x="578" y="92" width="152" height="72" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee"
+        <!-- ===================== NEXT.JS DASHBOARD ===================== -->
+        <rect x="600" y="94" width="160" height="75" rx="6" fill="#0f172a" />
+        <rect x="600" y="94" width="160" height="75" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee"
           stroke-width="1.5" />
-        <text x="654" y="113" fill="white" font-size="11" font-weight="600" text-anchor="middle">Next.js
-          Dashboard</text>
-        <text x="654" y="128" fill="#94a3b8" font-size="9" text-anchor="middle">Real-time agent status</text>
-        <text x="654" y="143" fill="#94a3b8" font-size="9" text-anchor="middle">WebSocket stream</text>
-        <text x="654" y="157" fill="#22d3ee" font-size="7" text-anchor="middle">Cloud Run · frontend</text>
+        <text x="680" y="114" fill="white" font-size="11" font-weight="600" text-anchor="middle"
+          font-family="JetBrains Mono">Next.js Dashboard</text>
+        <text x="680" y="129" fill="#94a3b8" font-size="8.5" text-anchor="middle" font-family="JetBrains Mono">Real-time
+          agent status</text>
+        <text x="680" y="143" fill="#94a3b8" font-size="8.5" text-anchor="middle" font-family="JetBrains Mono">Gantt ·
+          Approve / Skip</text>
+        <text x="680" y="160" fill="#22d3ee" font-size="7" text-anchor="middle" font-family="JetBrains Mono">Cloud Run ·
+          frontend</text>
 
-        <!-- ===== ORCHESTRATOR ===== -->
-        <rect x="175" y="88" width="190" height="72" rx="6" fill="#0f172a" />
-        <rect x="175" y="88" width="190" height="72" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399"
+        <!-- ===================== ORCHESTRATOR ===================== -->
+        <rect x="180" y="86" width="190" height="77" rx="6" fill="#0f172a" />
+        <rect x="180" y="86" width="190" height="77" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399"
           stroke-width="1.5" />
-        <text x="270" y="106" fill="white" font-size="12" font-weight="600" text-anchor="middle">Orchestrator</text>
-        <text x="270" y="120" fill="#94a3b8" font-size="8" text-anchor="middle">Receives webhook · Coordinates
-          pipeline</text>
-        <text x="270" y="132" fill="#94a3b8" font-size="8" text-anchor="middle">WebSocket · A2A · ADK</text>
-        <text x="270" y="150" fill="#34d399" font-size="7" text-anchor="middle">entry point</text>
+        <text x="275" y="106" fill="white" font-size="12" font-weight="600" text-anchor="middle"
+          font-family="JetBrains Mono">Orchestrator</text>
+        <text x="275" y="120" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Webhook
+          receiver · pipeline coord</text>
+        <text x="275" y="133" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">asyncio ·
+          httpx · WebSocket</text>
+        <text x="275" y="146" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">MR polling
+          · scar / win recording</text>
+        <text x="275" y="157" fill="#34d399" font-size="7" text-anchor="middle" font-family="JetBrains Mono">entry
+          point</text>
 
-        <!-- ===== INTELLIGENCE SERVICE ===== -->
-        <rect x="175" y="240" width="190" height="82" rx="6" fill="#0f172a" />
-        <rect x="175" y="240" width="190" height="82" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399"
+        <!-- ===================== INTELLIGENCE SERVICE ===================== -->
+        <rect x="180" y="250" width="190" height="86" rx="6" fill="#0f172a" />
+        <rect x="180" y="250" width="190" height="86" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399"
           stroke-width="1.5" />
-        <text x="270" y="261" fill="white" font-size="12" font-weight="600" text-anchor="middle">Intelligence
-          Service</text>
-        <text x="270" y="277" fill="#94a3b8" font-size="9" text-anchor="middle">Queries Dynatrace MCP</text>
-        <text x="270" y="291" fill="#94a3b8" font-size="9" text-anchor="middle">Pattern extraction · Risk scoring</text>
-        <text x="270" y="305" fill="#94a3b8" font-size="9" text-anchor="middle">Production cost quantification</text>
-        <text x="270" y="315" fill="#34d399" font-size="7" text-anchor="middle">ADK · Gemini</text>
+        <text x="275" y="270" fill="white" font-size="12" font-weight="600" text-anchor="middle"
+          font-family="JetBrains Mono">Intelligence Service</text>
+        <text x="275" y="285" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Queries
+          Dynatrace incident history</text>
+        <text x="275" y="299" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Extracts
+          semantic risk pattern</text>
+        <text x="275" y="313" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Risk score
+          · production cost context</text>
+        <text x="275" y="327" fill="#34d399" font-size="7" text-anchor="middle" font-family="JetBrains Mono">ADK
+          LlmAgent + Dynatrace FunctionTool</text>
 
-        <!-- ===== SCANNER SERVICE ===== -->
-        <rect x="175" y="412" width="190" height="85" rx="6" fill="#0f172a" />
-        <rect x="175" y="412" width="190" height="85" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399"
+        <!-- ===================== SCANNER SERVICE ===================== -->
+        <rect x="180" y="420" width="190" height="90" rx="6" fill="#0f172a" />
+        <rect x="180" y="420" width="190" height="90" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399"
           stroke-width="1.5" />
-        <text x="270" y="433" fill="white" font-size="12" font-weight="600" text-anchor="middle">Scanner Service</text>
-        <text x="270" y="449" fill="#94a3b8" font-size="9" text-anchor="middle">Reads codebase via GitLab MCP</text>
-        <text x="270" y="463" fill="#94a3b8" font-size="9" text-anchor="middle">asyncio fan-out · 1 agent per
-          service</text>
-        <text x="270" y="477" fill="#94a3b8" font-size="9" text-anchor="middle">Confidence-scored pattern hits</text>
-        <text x="270" y="489" fill="#34d399" font-size="7" text-anchor="middle">ADK · Gemini · fan-out</text>
+        <text x="275" y="440" fill="white" font-size="12" font-weight="600" text-anchor="middle"
+          font-family="JetBrains Mono">Scanner Service</text>
+        <text x="275" y="455" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">asyncio
+          fan-out · 12 parallel</text>
+        <text x="275" y="468" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Reads
+          source files via GitLab</text>
+        <text x="275" y="481" fill="#94a3b8" font-size="8" text-anchor="middle"
+          font-family="JetBrains Mono">Confidence-scored pattern hits</text>
+        <text x="275" y="500" fill="#34d399" font-size="7" text-anchor="middle" font-family="JetBrains Mono">ADK
+          LlmAgent + GitLab FunctionTool</text>
 
-        <!-- ===== FIX FACTORY ===== -->
-        <rect x="175" y="582" width="190" height="96" rx="6" fill="#0f172a" />
-        <rect x="175" y="582" width="190" height="96" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399"
+        <!-- ===================== FIX FACTORY ===================== -->
+        <rect x="180" y="592" width="190" height="110" rx="6" fill="#0f172a" />
+        <rect x="180" y="592" width="190" height="110" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399"
           stroke-width="1.5" />
-        <text x="270" y="603" fill="white" font-size="12" font-weight="600" text-anchor="middle">Fix Factory</text>
-        <text x="270" y="619" fill="#94a3b8" font-size="9" text-anchor="middle">Contextual fix generation</text>
-        <text x="270" y="633" fill="#94a3b8" font-size="9" text-anchor="middle">Self-correction loop (eval agent)</text>
-        <text x="270" y="647" fill="#94a3b8" font-size="9" text-anchor="middle">Opens fix MRs · Stores outcomes</text>
-        <text x="270" y="661" fill="#94a3b8" font-size="9" text-anchor="middle">Informed by incident traces +
-          history</text>
-        <text x="270" y="671" fill="#34d399" font-size="7" text-anchor="middle">ADK · Gemini</text>
+        <text x="275" y="613" fill="white" font-size="12" font-weight="600" text-anchor="middle"
+          font-family="JetBrains Mono">Fix Factory</text>
+        <text x="275" y="628" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Fix agent:
+          contextual patches</text>
+        <text x="275" y="641" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Eval agent:
+          fetches DT traces</text>
+        <text x="275" y="654" fill="#94a3b8" font-size="8" text-anchor="middle"
+          font-family="JetBrains Mono">Self-correction loop (3 iters)</text>
+        <text x="275" y="667" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Opens MRs ·
+          stores scars / wins</text>
+        <text x="275" y="680" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Parallel
+          to_thread per hit</text>
+        <text x="275" y="694" fill="#34d399" font-size="7" text-anchor="middle" font-family="JetBrains Mono">ADK
+          LlmAgent × 2 + FunctionTools</text>
 
-        <!-- ===== DYNATRACE MCP ===== -->
-        <rect x="578" y="244" width="152" height="80" rx="6" fill="#0f172a" />
-        <rect x="578" y="244" width="152" height="80" rx="6" fill="rgba(136,19,55,0.4)" stroke="#fb7185"
+        <!-- ===================== DYNATRACE MCP ===================== -->
+        <rect x="600" y="252" width="160" height="90" rx="6" fill="#0f172a" />
+        <rect x="600" y="252" width="160" height="90" rx="6" fill="rgba(136,19,55,0.4)" stroke="#fb7185"
           stroke-width="1.5" />
-        <text x="654" y="265" fill="white" font-size="11" font-weight="600" text-anchor="middle">Dynatrace MCP</text>
-        <text x="654" y="279" fill="#94a3b8" font-size="8" text-anchor="middle">Incident history · Traces</text>
-        <text x="654" y="291" fill="#94a3b8" font-size="8" text-anchor="middle">Service maps · Failure replay</text>
-        <text x="654" y="303" fill="#94a3b8" font-size="8" text-anchor="middle">Risk pattern extraction</text>
-        <text x="654" y="316" fill="#fb7185" font-size="7" text-anchor="middle">PRIMARY TRACK</text>
+        <text x="680" y="272" fill="white" font-size="11" font-weight="600" text-anchor="middle"
+          font-family="JetBrains Mono">Dynatrace MCP</text>
+        <text x="680" y="287" fill="#94a3b8" font-size="8" text-anchor="middle"
+          font-family="JetBrains Mono">query-problems · execute-dql</text>
+        <text x="680" y="300" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Incident
+          history · Traces</text>
+        <text x="680" y="313" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">OTel
+          ingestion (OTLP)</text>
+        <text x="680" y="334" fill="#fb7185" font-size="7" text-anchor="middle" font-family="JetBrains Mono">PRIMARY
+          TRACK</text>
 
-        <!-- ===== GITLAB MCP ===== -->
-        <rect x="578" y="436" width="152" height="68" rx="6" fill="#0f172a" />
-        <rect x="578" y="436" width="152" height="68" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24"
+        <!-- ===================== GITLAB REST API ===================== -->
+        <rect x="600" y="450" width="160" height="72" rx="6" fill="#0f172a" />
+        <rect x="600" y="450" width="160" height="72" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24"
           stroke-width="1.5" />
-        <text x="654" y="457" fill="white" font-size="11" font-weight="600" text-anchor="middle">GitLab MCP</text>
-        <text x="654" y="471" fill="#94a3b8" font-size="8" text-anchor="middle">Codebase read · MR creation</text>
-        <text x="654" y="483" fill="#94a3b8" font-size="8" text-anchor="middle">Commit + fix history</text>
-        <text x="654" y="495" fill="#fbbf24" font-size="7" text-anchor="middle">SECONDARY</text>
+        <text x="680" y="470" fill="white" font-size="11" font-weight="600" text-anchor="middle"
+          font-family="JetBrains Mono">GitLab REST API</text>
+        <text x="680" y="484" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Source file
+          reads · MR creation</text>
+        <text x="680" y="498" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Commit
+          history · Fix precedents</text>
+        <text x="680" y="513" fill="#fbbf24" font-size="7" text-anchor="middle"
+          font-family="JetBrains Mono">SECONDARY</text>
 
-        <!-- ===== MONGODB ATLAS ===== -->
-        <rect x="578" y="578" width="152" height="82" rx="6" fill="#0f172a" />
-        <rect x="578" y="578" width="152" height="82" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa"
+        <!-- ===================== MONGODB ATLAS ===================== -->
+        <rect x="600" y="590" width="160" height="90" rx="6" fill="#0f172a" />
+        <rect x="600" y="590" width="160" height="90" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa"
           stroke-width="1.5" />
-        <text x="654" y="599" fill="white" font-size="11" font-weight="600" text-anchor="middle">MongoDB Atlas</text>
-        <text x="654" y="613" fill="#94a3b8" font-size="8" text-anchor="middle">Institutional memory</text>
-        <text x="654" y="625" fill="#94a3b8" font-size="8" text-anchor="middle">Scars · Wins · Patterns</text>
-        <text x="654" y="637" fill="#94a3b8" font-size="8" text-anchor="middle">Vector search · Risk adjust</text>
-        <text x="654" y="650" fill="#a78bfa" font-size="7" text-anchor="middle">TERTIARY</text>
+        <text x="680" y="610" fill="white" font-size="11" font-weight="600" text-anchor="middle"
+          font-family="JetBrains Mono">MongoDB Atlas</text>
+        <text x="680" y="625" fill="#94a3b8" font-size="8" text-anchor="middle"
+          font-family="JetBrains Mono">Institutional memory</text>
+        <text x="680" y="638" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Scars ·
+          Wins · Patterns</text>
+        <text x="680" y="651" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">Atlas
+          Vector Search (cosine)</text>
+        <text x="680" y="671" fill="#a78bfa" font-size="7" text-anchor="middle"
+          font-family="JetBrains Mono">TERTIARY</text>
 
-        <!-- ===== GITLAB WEBHOOK (external left) ===== -->
-        <rect x="10" y="115" width="115" height="55" rx="6" fill="#0f172a" />
-        <rect x="10" y="115" width="115" height="55" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8"
+        <!-- ===================== ENTRY POINTS (left) ===================== -->
+        <rect x="10" y="112" width="122" height="60" rx="6" fill="#0f172a" />
+        <rect x="10" y="112" width="122" height="60" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8"
           stroke-width="1.5" />
-        <text x="67" y="136" fill="white" font-size="10" font-weight="600" text-anchor="middle">GitLab Webhook</text>
-        <text x="67" y="150" fill="#94a3b8" font-size="8.5" text-anchor="middle">PR open / update</text>
-        <text x="67" y="163" fill="#94a3b8" font-size="8" text-anchor="middle">HTTPS · :443</text>
+        <text x="71" y="131" fill="white" font-size="9.5" font-weight="600" text-anchor="middle"
+          font-family="JetBrains Mono">GitLab Webhook</text>
+        <text x="71" y="145" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">PR open /
+          update</text>
+        <text x="71" y="157" fill="#94a3b8" font-size="8" text-anchor="middle" font-family="JetBrains Mono">HTTPS ·
+          :443</text>
+        <text x="71" y="167" fill="#475569" font-size="7" text-anchor="middle" font-family="JetBrains Mono">or ▶ Trigger
+          Demo</text>
 
-        <!-- ===== LEGEND (below Cloud Run boundary at y=728) ===== -->
-        <text x="145" y="748" fill="#475569" font-size="8.5" font-weight="600">Legend:</text>
+        <!-- ===================== LEGEND (centred, below Cloud Run boundary) ===================== -->
+        <!-- total width ~696px; start x=82 centres in 860px viewBox -->
+        <text x="82" y="793" fill="#475569" font-size="8.5" font-weight="600"
+          font-family="JetBrains Mono">Legend:</text>
 
-        <rect x="196" y="738" width="12" height="8" rx="2" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1" />
-        <text x="213" y="745" fill="#94a3b8" font-size="8">Agent Service</text>
+        <rect x="130" y="784" width="12" height="8" rx="2" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1" />
+        <text x="147" y="791" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">Agent Service</text>
 
-        <rect x="283" y="738" width="12" height="8" rx="2" fill="rgba(136,19,55,0.4)" stroke="#fb7185"
+        <rect x="228" y="784" width="12" height="8" rx="2" fill="rgba(136,19,55,0.4)" stroke="#fb7185"
           stroke-width="1" />
-        <text x="300" y="745" fill="#94a3b8" font-size="8">Dynatrace MCP</text>
+        <text x="245" y="791" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">Dynatrace MCP</text>
 
-        <rect x="378" y="738" width="12" height="8" rx="2" fill="rgba(120,53,15,0.3)" stroke="#fbbf24"
+        <rect x="332" y="784" width="12" height="8" rx="2" fill="rgba(120,53,15,0.3)" stroke="#fbbf24"
           stroke-width="1" />
-        <text x="395" y="745" fill="#94a3b8" font-size="8">GitLab / Cloud</text>
+        <text x="349" y="791" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">GitLab / Cloud</text>
 
-        <rect x="462" y="738" width="12" height="8" rx="2" fill="rgba(76,29,149,0.4)" stroke="#a78bfa"
+        <rect x="432" y="784" width="12" height="8" rx="2" fill="rgba(76,29,149,0.4)" stroke="#a78bfa"
           stroke-width="1" />
-        <text x="479" y="745" fill="#94a3b8" font-size="8">MongoDB</text>
+        <text x="449" y="791" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">MongoDB</text>
 
-        <rect x="533" y="738" width="12" height="8" rx="2" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1" />
-        <text x="550" y="745" fill="#94a3b8" font-size="8">Frontend</text>
+        <rect x="508" y="784" width="12" height="8" rx="2" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1" />
+        <text x="525" y="791" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">Frontend</text>
 
-        <line x1="604" y1="742" x2="618" y2="742" stroke="#34d399" stroke-width="2" />
-        <text x="623" y="745" fill="#94a3b8" font-size="8">A2A Protocol</text>
+        <line x1="581" y1="788" x2="597" y2="788" stroke="#34d399" stroke-width="2" />
+        <text x="602" y="791" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">A2A HTTP</text>
 
-        <line x1="686" y1="742" x2="700" y2="742" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="3,2" />
-        <text x="705" y="745" fill="#94a3b8" font-size="8">WebSocket</text>
+        <line x1="656" y1="788" x2="672" y2="788" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="3,2" />
+        <text x="677" y="791" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">WebSocket</text>
+
+        <line x1="736" y1="788" x2="752" y2="788" stroke="#fb7185" stroke-width="1.2" stroke-dasharray="3,2" />
+        <text x="757" y="791" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">OTel / eval</text>
+
       </svg>
     </div>
 
@@ -470,10 +540,10 @@
           <h3>Data Sources</h3>
         </div>
         <ul>
-          <li>• Dynatrace: incident history, service maps, failure traces</li>
-          <li>• GitLab: codebase, fix history, MR metadata</li>
-          <li>• MongoDB: institutional scars, wins, pattern scores</li>
-          <li>• Vertex AI: Gemini model shared across all four services</li>
+          <li>• Dynatrace: incident history, service maps, failure traces via MCP</li>
+          <li>• GitLab REST API: source files, MR history, fix precedents</li>
+          <li>• MongoDB Atlas: institutional scars, wins, vector-search patterns</li>
+          <li>• Gemini 3 Flash: model for all four ADK LlmAgents via AI Studio</li>
         </ul>
       </div>
 
@@ -483,10 +553,10 @@
           <h3>Agent Pipeline</h3>
         </div>
         <ul>
-          <li>• Google ADK orchestration across four microservices</li>
-          <li>• A2A protocol wires every service-to-service call</li>
-          <li>• asyncio fan-out: one agent per target service</li>
-          <li>• Self-correction loop before any MR is opened</li>
+          <li>• Google ADK LlmAgent + FunctionTool across all four services</li>
+          <li>• A2A agent-to-agent HTTP calls wire the pipeline end-to-end</li>
+          <li>• asyncio fan-out: one scanner agent per service, all in parallel</li>
+          <li>• Self-correction loop: eval agent re-fetches real Dynatrace traces</li>
         </ul>
       </div>
 
@@ -496,10 +566,10 @@
           <h3>Institutional Memory</h3>
         </div>
         <ul>
-          <li>• Scars: rejected fixes with learned context &amp; risk penalty</li>
-          <li>• Wins: merged fixes with no incidents since merge</li>
-          <li>• Vector search surfaces similar past cases at scan time</li>
-          <li>• Scanner agents briefed with per-service history</li>
+          <li>• Scars: rejected fixes lower future risk scores for that pattern</li>
+          <li>• Wins: merged fixes with no incidents raise confidence scores</li>
+          <li>• Atlas Vector Search (text-embedding-004, 768-dim cosine)</li>
+          <li>• OTel spans shipped to Dynatrace; Ripple observes itself</li>
         </ul>
       </div>
     </div>

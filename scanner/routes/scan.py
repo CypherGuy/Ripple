@@ -28,13 +28,14 @@ def _ts() -> str:
 
 @router.post("/scan")
 async def scan(payload: ScanPayload):
-    # One thread per service, sized exactly to this request — no global pool cap.
+    # One thread per service, sized exactly to this request - no global pool cap.
     # asyncio.to_thread uses the event loop's shared default executor; on Cloud Run
     # that pool can be as small as 6, batching a 12-service scan into two rounds.
     # Using run_in_executor with a dedicated pool guarantees all services start in
     # parallel regardless of how many there are.
     loop = asyncio.get_event_loop()
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=len(payload.services))
+    executor = concurrent.futures.ThreadPoolExecutor(
+        max_workers=len(payload.services))
 
     async def scan_one(svc: ServiceEntry) -> list[dict]:
         emit_event(payload.callback_url, {
