@@ -32,17 +32,23 @@ def _gemini_client():
 
 
 def _default_gemini(prompt: str) -> list[dict]:
-    try:
-        client = _gemini_client()
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview", contents=prompt)
-        text = response.text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-        return json.loads(text)
-    except Exception as e:
-        logger.warning("_default_gemini failed: %s", e)
-        return []
+    import time
+    client = _gemini_client()
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3-flash-preview", contents=prompt)
+            text = response.text.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            return json.loads(text)
+        except Exception as e:
+            if attempt < 2 and "503" in str(e):
+                time.sleep(3 * (attempt + 1))
+                continue
+            logger.warning("_default_gemini failed: %s", e)
+            return []
+    return []
 
 
 def _fetch_service_files(gitlab_namespace: str) -> dict:
