@@ -67,10 +67,9 @@ def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
     """Run pattern extraction via an ADK LlmAgent with a Dynatrace FunctionTool.
 
     The prompt contains only the raw diff. The agent decides whether to call
-    _dt_fetch_incidents to retrieve Dynatrace incident history - this is 
-    agentic tool use, not decorative. If the diff looks dangerous, the agent calls
-    the tool; the tool queries the Dynatrace MCP and returns real incident records
-    which the agent uses to ground its risk score and rationale.
+    _dt_fetch_incidents based on the diff content. If the diff looks dangerous,
+    it fetches real Dynatrace incident records and uses them to ground its risk
+    score and rationale.
     """
     agent = LlmAgent(
         name="ripple_pattern_extractor",

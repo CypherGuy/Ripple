@@ -13,7 +13,7 @@ The same pattern that caused your last outage is being reintroduced by AI-assist
 
 A developer (or an AI coding agent) adds an HTTP call without a timeout. It passes code review. It merges. Six months later, a slow third-party endpoint causes your service to hang, the thread pool exhausts, and the cascade begins. That's P-26051: a 47-minute outage, £23,000 in estimated cost.
 
-The same pattern existed in eleven other services, introduced by three different developers over eighteen months. Nobody knew. Nobody connected the PR that opened it to the incident that proved it was dangerous.
+The same pattern existed in twelve other services, introduced by three different developers over eighteen months. Nobody knew. Nobody connected the PR that opened it to the incident that proved it was dangerous.
 
 Every other code review tool asks _"did this pattern appear before?"_ Ripple asks _"did this pattern cause an outage, and where else is it hiding right now?"_
 
@@ -21,7 +21,7 @@ Every other code review tool asks _"did this pattern appear before?"_ Ripple ask
 
 ## What Ripple Does
 
-Ripple is a multi-agent AI system that intercepts GitLab PRs, checks them against real Dynatrace production incident history, fans out across every service in your codebase simultaneously, and autonomously opens fix MRs. Each MR is grounded in the exact incident that proved why the pattern is dangerous.
+Ripple is a multi-agent AI system that intercepts GitLab PRs, checks them against real Dynatrace production incident history, fans out across every service in your codebase simultaneously, and autonomously opens fix MRs. Each MR cites the exact incident that proved why the pattern is dangerous.
 
 One PR fires the pipeline. Twelve services are scanned in parallel. Fix MRs appear in GitLab within minutes, each citing the specific Dynatrace incident ID, duration, and estimated cost. The developer does not need to know the pattern was dangerous. Ripple already does.
 
@@ -115,6 +115,8 @@ Scar → rejected fix, pattern was intentional → risk_adjustment: -2
 ```
 
 Every subsequent scan on the same codebase queries this history. Scars lower the risk score on patterns a team has deliberately chosen not to fix. Wins raise confidence on patterns they have already addressed. Ripple gets more accurate with each run on the same codebase.
+
+Pattern matching uses **Atlas Vector Search** with Gemini `text-embedding-004` embeddings (768 dimensions, cosine similarity). Each scar and win is stored with a semantic vector so that "HTTP call without a configured timeout" and "missing timeout on HTTP request" match correctly, regardless of wording. Falls back to regex-based keyword matching if embedding generation fails.
 
 When accumulated scars push a risk score below the configurable `AUTO_FIX_THRESHOLD`, Ripple switches from auto-fixing to requesting approval. The developer sees **Approve / Skip** buttons on the dashboard tile rather than an automatically opened MR - the decision stays with the engineer.
 
