@@ -1,7 +1,10 @@
+import logging
 import os
 from datetime import datetime, timezone
 from pymongo import MongoClient
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -52,6 +55,15 @@ def record_feedback(
         "reason": reason,
         "recorded_at": now,
     }
+    # Generate embedding for Atlas Vector Search; skip silently on failure
+    try:
+        from shared.embeddings import embed_text
+        embedding = embed_text(pattern)
+        if embedding:
+            doc["pattern_embedding"] = embedding
+    except Exception as e:
+        logger.warning("Embedding generation skipped: %s", e)
+
     if outcome == "merged":
         col = _wins_col if _wins_col is not None else _get_wins_col()
         col.insert_one({**doc, "confidence_boost": 1})
