@@ -55,7 +55,7 @@ async def scan(payload: ScanPayload):
                 ),
                 timeout=60,
             )
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, Exception):
             hits = []
         tagged = [{**h, "service": svc.name} for h in hits]
 

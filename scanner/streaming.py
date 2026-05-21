@@ -1,6 +1,9 @@
+import logging
 import os
 from urllib.parse import urlparse
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 def validate_callback_url(url: str) -> None:
@@ -25,5 +28,5 @@ def emit_event(callback_url: str | None, data: dict) -> None:
         )
     except ValueError:
         pass
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("emit_event failed url=%s error=%s", callback_url, exc)

@@ -2,6 +2,12 @@ import os
 import httpx
 
 _GITLAB_BASE = "https://gitlab.com/api/v4"
+_PRIORITY = ("main.py", "app.py")
+
+
+def _sort_key(path: str) -> tuple:
+    name = path.split("/")[-1]
+    return (0 if name in _PRIORITY else 1, path)
 
 
 def read_service_files(
@@ -35,6 +41,6 @@ def read_service_files(
                 )
                 if content_r.status_code == 200:
                     files[item["path"]] = content_r.text
-        return files
+        return dict(sorted(files.items(), key=lambda kv: _sort_key(kv[0])))
     except Exception:
         return {}

@@ -32,15 +32,16 @@ def _gemini_client():
 
 
 def _default_gemini(prompt: str) -> list[dict]:
-    client = _gemini_client()
-    response = client.models.generate_content(
-        model="gemini-3-flash-preview", contents=prompt)
-    text = response.text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
     try:
+        client = _gemini_client()
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview", contents=prompt)
+        text = response.text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         return json.loads(text)
-    except Exception:
+    except Exception as e:
+        logger.warning("_default_gemini failed: %s", e)
         return []
 
 
@@ -123,7 +124,7 @@ def scan_service(
             ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
             try:
                 hits = ex.submit(call_scanner_adk, service,
-                                 pattern).result(timeout=25)
+                                 pattern).result(timeout=10)
             except Exception:
                 hits = []
             finally:
@@ -142,20 +143,23 @@ def scan_service(
         if not files:
             return []
 
+        file_list = ", ".join(files.keys())
         files_text = "\n\n".join(
             f"=== {path} ===\n{content}" for path, content in files.items())
 
         span.set_attribute("files.count", len(files))
-        hits = _scan_with_gemini(files_text, pattern, _gemini_fn)
+        hits = _scan_with_gemini(files_text, file_list, pattern, _gemini_fn)
         span.set_attribute("hits.count", len(hits))
         span.set_attribute("hit.found", len(hits) > 0)
     return hits
 
 
-def _scan_with_gemini(files_text: str, pattern: str, _gemini_fn) -> list[dict]:
+def _scan_with_gemini(files_text: str, file_list: str, pattern: str, _gemini_fn) -> list[dict]:
     prompt = f"""You are a code reviewer scanning for dangerous patterns.
 
 PATTERN TO FIND: {pattern}
+
+FILES AVAILABLE: {file_list}
 
 IMPORTANT: Match the semantic risk, not the exact wording. For example, "HTTP call with no timeout"
 means any HTTP request (requests.get, httpx.get, urllib, etc.) that does not pass a timeout parameter.
@@ -165,7 +169,7 @@ Do NOT flag HTTP calls that already pass a timeout argument (e.g. timeout=5, tim
 timeout=(connect, read)). Only flag calls where timeout is completely absent.
 
 FILES:
-{files_text[:8000]}
+{files_text[:15000]}
 
 Return a JSON array of hits. Each hit must have:
   "file_path": string,
