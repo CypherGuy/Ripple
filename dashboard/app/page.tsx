@@ -260,6 +260,7 @@ export default function Dashboard() {
               { color: "bg-ripple-scan", label: "Scanning" },
               { color: "bg-ripple-hit", label: "Hit" },
               { color: "bg-ripple-clean", label: "Clean" },
+              { color: "bg-ripple-accent", label: "Approval" },
             ].map(({ color, label }) => (
               <div key={label} className="flex items-center gap-1">
                 <span
