@@ -50,11 +50,9 @@ def build(svc: str, image: str):
     context = "." if svc != "dashboard" else "dashboard/"
     docker_args = ["build", "-f", dockerfile, "-t", image]
     if svc == "dashboard":
-        admin_secret = os.environ.get("ADMIN_SECRET", "")
         docker_args += [
             "--build-arg", f"NEXT_PUBLIC_ORCHESTRATOR_URL={ORCHESTRATOR_URL}",
             "--build-arg", f"NEXT_PUBLIC_WS_URL=wss://ripple-orchestrator-mctjeick3a-nw.a.run.app/ws",
-            "--build-arg", f"NEXT_PUBLIC_ADMIN_SECRET={admin_secret}",
         ]
     docker_args.append(context)
     cb = {
@@ -96,7 +94,9 @@ def deploy_dashboard(image: str):
     env_vars = ",".join([
         f"NEXT_PUBLIC_WS_URL=wss://ripple-orchestrator-mctjeick3a-nw.a.run.app/ws",
         f"NEXT_PUBLIC_ORCHESTRATOR_URL={ORCHESTRATOR_URL}",
-        f"NEXT_PUBLIC_ADMIN_SECRET={admin_secret}",
+        # Server-side only: used by Next.js API routes to proxy admin calls
+        f"ADMIN_SECRET={admin_secret}",
+        f"ORCHESTRATOR_URL={ORCHESTRATOR_URL}",
     ])
     r = subprocess.run(
         ["gcloud", "run", "deploy", "ripple-dashboard", "--image", image,

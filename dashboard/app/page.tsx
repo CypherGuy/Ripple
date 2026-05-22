@@ -56,15 +56,11 @@ export default function Dashboard() {
     markServiceApproving(service);
     setApprovingServices((prev) => new Set(prev).add(service));
     try {
-      const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "";
       const tile = services.get(service);
       const payload = tile?.approvalPayload ?? {};
-      const r = await fetch(`${ORCHESTRATOR_URL}/internal/approve`, {
+      const r = await fetch(`/api/admin/approve`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Admin-Secret": adminSecret,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           service,
           ...(typeof payload === "object" && payload ? payload : {}),
@@ -89,15 +85,11 @@ export default function Dashboard() {
 
   async function skipService(service: string) {
     const tile = services.get(service);
-    const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "";
     markServiceSkipped(service);
     try {
-      const r = await fetch(`${ORCHESTRATOR_URL}/admin/skip`, {
+      const r = await fetch(`/api/admin/skip`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Admin-Secret": adminSecret,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           service,
           pattern: tile?.pattern ?? "",
@@ -118,12 +110,7 @@ export default function Dashboard() {
     setClosing(true);
     setCloseResult(null);
     try {
-      const r = await fetch(`${ORCHESTRATOR_URL}/admin/close-mrs`, {
-        method: "POST",
-        headers: {
-          "X-Admin-Secret": process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "",
-        },
-      });
+      const r = await fetch(`/api/admin/close-mrs`, { method: "POST" });
       const data = await r.json();
       setCloseResult(`Closed ${data.closed} MR${data.closed !== 1 ? "s" : ""}`);
       reset();
@@ -208,12 +195,7 @@ export default function Dashboard() {
             <button
               onClick={async () => {
                 try {
-                  await fetch(`${ORCHESTRATOR_URL}/admin/cancel`, {
-                    method: "POST",
-                    headers: {
-                      "X-Admin-Secret": process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "",
-                    },
-                  });
+                  await fetch(`/api/admin/cancel`, { method: "POST" });
                 } catch {
                   /* best-effort — still reset the UI */
                 }
