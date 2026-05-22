@@ -48,6 +48,10 @@ const config: Config = {
           '0%, 100%': { opacity: '0.4' },
           '50%':       { opacity: '1' },
         },
+        'pulse-subtle': {
+          '0%, 100%': { boxShadow: '0 0 10px rgba(99,102,241,0.45)' },
+          '50%':       { boxShadow: '0 0 22px rgba(99,102,241,0.85)' },
+        },
       },
       animation: {
         'scan-ring':  'scan-ring 1.4s ease-out infinite',
@@ -55,7 +59,8 @@ const config: Config = {
         'clean-fade': 'clean-fade 0.8s ease-out forwards',
         'count-up':   'count-up 0.25s ease-out forwards',
         'slide-in':   'slide-in 0.3s ease-out forwards',
-        'glow-line':  'glow-line 2.5s ease-in-out infinite',
+        'glow-line':    'glow-line 2.5s ease-in-out infinite',
+        'pulse-subtle': 'pulse-subtle 2s ease-in-out infinite',
       },
     },
   },

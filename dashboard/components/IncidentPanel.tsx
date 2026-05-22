@@ -59,10 +59,13 @@ export default function IncidentPanel({
           {dtEvidence && (
             <button
               onClick={() => setShowModal(true)}
-              className="font-mono text-[9px] uppercase tracking-wider text-ripple-accent/60 hover:text-ripple-accent transition-colors border border-ripple-accent/20 hover:border-ripple-accent/50 rounded px-1.5 py-0.5"
+              className="relative font-mono text-[10px] font-bold uppercase tracking-wider text-white bg-ripple-accent/80 hover:bg-ripple-accent transition-all rounded px-2.5 py-1 shadow-[0_0_12px_rgba(99,102,241,0.5)] hover:shadow-[0_0_20px_rgba(99,102,241,0.8)] animate-pulse-subtle"
               title="View raw Dynatrace MCP response"
             >
-              DT source
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-white/80 animate-ping absolute left-2 top-1/2 -translate-y-1/2" aria-hidden="true" />
+                <span className="pl-2">View DT Evidence ↗</span>
+              </span>
             </button>
           )}
         </div>
