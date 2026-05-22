@@ -344,6 +344,7 @@ export function useRippleSocket() {
       riskScore: null,
       pipelineStartMs: null,
       pipelineEndMs: null,
+      dtEvidence: null,
     }));
     setTimeline({ startMs: null, intelligenceEndMs: null, services: {} });
   }

@@ -6,7 +6,7 @@ import type { DtEvidence } from '../hooks/useRippleSocket'
 // Strip Dynatrace internal metadata from the raw MCP problem description,
 // leaving only the plain-English root cause sentences.
 function cleanRootCause(raw: string): string {
-  // Take only text after "Availability:" if present — that's where DT puts the actual description
+  // Take only text after "Availability:" if present - that's where DT puts the actual description
   const afterAvailability = raw.split(/Availability:/i).pop() ?? raw
   // Strip markdown: headers (#), bold (**text**), and excess whitespace
   return afterAvailability
@@ -106,7 +106,19 @@ export default function DtEvidenceModal({ evidence, onClose }: Props) {
                   <span className="w-1.5 h-1.5 rounded-full bg-ripple-hit shrink-0" />
                   <span className="font-mono text-[11px] font-bold text-ripple-hit">{incidentId}</span>
                 </div>
-                {title && <Field label="root cause" value={title} />}
+                {title && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-ripple-subtle/50">root cause</span>
+                    <ul className="flex flex-col gap-1 mt-0.5">
+                      {title.split(/\s*[-—]\s+/).filter(s => s.trim().length > 0).map((line, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-ripple-hit mt-0.5 shrink-0">·</span>
+                          <span className="font-mono text-[11px] text-ripple-text/80">{line.trim()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <div className="flex gap-6">
                   {duration !== undefined && <Field label="duration" value={`${duration} min`} />}
                   {cost && <Field label="est. cost" value={cost} />}

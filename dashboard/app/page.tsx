@@ -197,7 +197,7 @@ export default function Dashboard() {
                 try {
                   await fetch(`/api/admin/cancel`, { method: "POST" });
                 } catch {
-                  /* best-effort — still reset the UI */
+                  /* best-effort - still reset the UI */
                 }
                 reset();
               }}
