@@ -109,11 +109,11 @@ export default function DtEvidenceModal({ evidence, onClose }: Props) {
                 {title && (
                   <div className="flex flex-col gap-0.5">
                     <span className="font-mono text-[9px] uppercase tracking-widest text-ripple-subtle/50">root cause</span>
-                    <ul className="flex flex-col gap-1 mt-0.5">
-                      {title.split(/\s*[-—]\s+/).filter(s => s.trim().length > 0).map((line, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-ripple-hit mt-0.5 shrink-0">·</span>
-                          <span className="font-mono text-[11px] text-ripple-text/80">{line.trim()}</span>
+                    <ul className="flex flex-col gap-1.5 mt-0.5">
+                      {title.split(/\s+[-—]\s+/).filter(s => s.trim().length > 0).map((line, i) => (
+                        <li key={i} className="flex items-center gap-2">
+                          <span className="text-ripple-hit leading-none shrink-0">&#8226;</span>
+                          <span className="font-mono text-[11px] text-ripple-text/80 leading-snug">{line.trim()}</span>
                         </li>
                       ))}
                     </ul>
