@@ -25,6 +25,13 @@ export interface ServiceState {
   approvalPayload: unknown | null;
 }
 
+export interface DtEvidence {
+  toolCall: { tool: string; arguments: Record<string, unknown> };
+  incidentContext: Record<string, unknown>;
+  rationale: string;
+  pattern: string;
+}
+
 export interface ScanSummary {
   scanned: number;
   hits: number;
@@ -34,6 +41,7 @@ export interface ScanSummary {
   riskScore: number | null;
   pipelineStartMs: number | null;
   pipelineEndMs: number | null;
+  dtEvidence: DtEvidence | null;
 }
 
 export interface ServiceTiming {
@@ -68,6 +76,7 @@ export function useRippleSocket() {
     riskScore: null,
     pipelineStartMs: null,
     pipelineEndMs: null,
+    dtEvidence: null,
   });
   const [timeline, setTimeline] = useState<PipelineTimeline>({
     startMs: null,
@@ -240,6 +249,12 @@ export function useRippleSocket() {
               setSummary((s) => ({
                 ...s,
                 riskScore: event.risk_score ?? null,
+                dtEvidence: event.dt_tool_call ? {
+                  toolCall: event.dt_tool_call,
+                  incidentContext: event.incident_context ?? {},
+                  rationale: event.risk_rationale ?? "",
+                  pattern: event.pattern ?? "",
+                } : s.dtEvidence,
               }));
               setTimeline((t) => ({ ...t, intelligenceEndMs: Date.now() }));
             } else if (event.event === "requires_approval") {

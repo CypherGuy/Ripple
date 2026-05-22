@@ -149,25 +149,17 @@ export default function ServiceTile({ name, state, onApprove, onSkip }: Props) {
                 </svg>
               </a>
               {state.evaluatedOn === "incident_context" && state.incidentId && (
-                <span className="font-mono text-[8px] text-[#fb7185]/80 uppercase tracking-wider">
-                  Incident: {state.incidentId}
+                <span
+                  className="font-mono text-[8px] text-ripple-hit/90 uppercase tracking-wider border border-ripple-hit/25 rounded px-1 py-px"
+                  title="Fix was generated and evaluated against this Dynatrace incident"
+                >
+                  DT: {state.incidentId}
                 </span>
               )}
               {state.correctionIterations !== null && (
                 <span className="font-mono text-[8px] text-ripple-subtle/60 uppercase tracking-wider">
                   eval {state.correctionIterations}/3
                 </span>
-              )}
-              {state.status === "hit" && state.mrUrl && (
-                <a
-                  href="https://jfr54188.apps.dynatrace.com/ui/apps/dynatrace.distributedtracing/explorer?v=spans"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-[8px] text-ripple-accent/60 hover:text-ripple-accent uppercase tracking-wider transition-colors"
-                  title="View this fix's OTel trace in Dynatrace"
-                >
-                  DT trace ↗
-                </a>
               )}
               {state.feedbackOutcome === "merged" && (
                 <span className="font-mono text-[8px] text-ripple-clean uppercase tracking-wider">

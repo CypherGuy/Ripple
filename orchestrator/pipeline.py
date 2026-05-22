@@ -296,12 +296,20 @@ async def run_pipeline(
         threshold = int(os.environ.get("AUTO_FIX_THRESHOLD", "7"))
         risk_score = int(intel.get("risk_score", 10))
 
-        # Broadcast risk score so the dashboard incident panel can display it
+        # Broadcast risk score so the dashboard incident panel can display it.
+        # Include dt_evidence so the frontend can show the raw DT MCP response
+        # without requiring judges to log in to Dynatrace.
         try:
             await _client.post(
                 f"{ORCHESTRATOR_URL}/internal/broadcast",
-                json={"event": "risk_scored", "risk_score": risk_score,
-                      "pattern": intel.get("pattern", "")},
+                json={
+                    "event": "risk_scored",
+                    "risk_score": risk_score,
+                    "pattern": intel.get("pattern", ""),
+                    "risk_rationale": intel.get("risk_rationale") or intel.get("rationale", ""),
+                    "incident_context": intel.get("incident_context", {}),
+                    "dt_tool_call": {"tool": "query-problems", "arguments": {"history": "30d"}},
+                },
                 headers={"X-Internal-Secret": internal_secret},
                 timeout=5,
             )
