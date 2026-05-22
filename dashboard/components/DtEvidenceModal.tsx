@@ -3,6 +3,19 @@
 import { useEffect, useRef } from 'react'
 import type { DtEvidence } from '../hooks/useRippleSocket'
 
+// Strip Dynatrace internal metadata from the raw MCP problem description,
+// leaving only the plain-English root cause sentences.
+function cleanRootCause(raw: string): string {
+  // Take only text after "Availability:" if present — that's where DT puts the actual description
+  const afterAvailability = raw.split(/Availability:/i).pop() ?? raw
+  // Strip markdown: headers (#), bold (**text**), and excess whitespace
+  return afterAvailability
+    .replace(/#+\s*/g, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 const DT_ENV = 'jfr54188.apps.dynatrace.com'
 const MCP_ENDPOINT = `https://${DT_ENV}/platform-reserved/mcp-gateway/v0.1/servers/dynatrace-mcp/mcp`
 
@@ -31,7 +44,8 @@ export default function DtEvidenceModal({ evidence, onClose }: Props) {
 
   const ctx = evidence.incidentContext
   const incidentId = (ctx.incident_id ?? ctx.display_id ?? '') as string
-  const title = (ctx.root_cause_summary ?? ctx['event.description'] ?? '') as string
+  const rawTitle = (ctx.root_cause_summary ?? ctx['event.description'] ?? '') as string
+  const title = cleanRootCause(rawTitle)
   const duration = ctx.duration_minutes as number | undefined
   const cost = (ctx.estimated_cost ?? '') as string
   const argsJson = JSON.stringify(evidence.toolCall.arguments, null, 2)
