@@ -193,22 +193,15 @@ export default function Dashboard() {
 
             {/* Reset button */}
             <button
-              onClick={async () => {
-                try {
-                  await fetch(`/api/admin/cancel`, { method: "POST" });
-                } catch {
-                  /* best-effort - still reset the UI */
-                }
-                reset();
-              }}
+              onClick={reset}
               className={[
                 "font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded border transition-all duration-150 cursor-pointer",
                 "border-white/10 text-ripple-subtle hover:border-white/20 hover:text-ripple-text",
                 "focus:outline-none focus:ring-1 focus:ring-white/20",
               ].join(" ")}
-              aria-label="Reset scan state"
+              aria-label="Clear scan state"
             >
-              Reset
+              Clear
             </button>
 
             {/* About link */}
