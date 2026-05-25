@@ -282,7 +282,7 @@ async def run_pipeline(
         intel_ctx.pop("event.id", None)
 
         _MISSING = {"", "no summary provided.", "no summary provided", "none"}
-        for key, val in payload.get("incident_context", {}).items():
+        for key, val in (payload.get("incident_context") or {}).items():
             current = intel_ctx.get(key, "")
             if not current or (isinstance(current, str) and current.strip().lower() in _MISSING):
                 intel_ctx[key] = val

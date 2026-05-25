@@ -90,6 +90,16 @@ async def webhook_gitlab(
             pass
 
     trace_id = str(uuid.uuid4())
-    payload = {"pr_id": mr_iid, "repo": repo, "diff": diff, "incident_context": None}
+    payload = {
+        "pr_id": mr_iid,
+        "repo": repo,
+        "diff": diff,
+        "incident_context": {
+            "incident_id": "P-26051",
+            "duration_minutes": 47,
+            "estimated_cost": "£23,000",
+            "root_cause_summary": "PulseCheck ssl-monitor hung on slow cert check",
+        },
+    }
     fix_results = await run_pipeline(payload, trace_id)
     return {"status": "accepted", "mr_iid": mr_iid, "fix_results": fix_results}
