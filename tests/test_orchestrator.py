@@ -431,3 +431,58 @@ def test_approve_endpoint_requires_admin_secret(client):
         headers={"X-Admin-Secret": "wrong"},
     )
     assert r.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# GitLab native webhook (/webhook/gitlab)
+# ---------------------------------------------------------------------------
+
+def test_gitlab_webhook_ignores_non_mr_event(client):
+    import os
+    os.environ.pop("GITLAB_WEBHOOK_SECRET", None)
+    r = client.post("/webhook/gitlab",
+                    json={},
+                    headers={"X-Gitlab-Event": "Push Hook"})
+    assert r.status_code == 202
+    assert r.json()["status"] == "ignored"
+
+
+def test_gitlab_webhook_ignores_non_open_action(client):
+    import os
+    os.environ.pop("GITLAB_WEBHOOK_SECRET", None)
+    r = client.post("/webhook/gitlab",
+                    json={"object_attributes": {"action": "merge"}, "project": {}},
+                    headers={"X-Gitlab-Event": "Merge Request Hook"})
+    assert r.status_code == 202
+    assert r.json()["status"] == "ignored"
+
+
+def test_gitlab_webhook_rejects_wrong_token(client):
+    import os
+    os.environ["GITLAB_WEBHOOK_SECRET"] = "correct-secret"
+    r = client.post("/webhook/gitlab",
+                    json={},
+                    headers={"X-Gitlab-Token": "wrong", "X-Gitlab-Event": "Merge Request Hook"})
+    assert r.status_code == 403
+
+
+def test_gitlab_webhook_fires_pipeline_on_mr_open(client):
+    import os
+    os.environ.pop("GITLAB_WEBHOOK_SECRET", None)
+    os.environ.pop("GITLAB_TOKEN", None)
+    body = {
+        "object_attributes": {"action": "open", "iid": 42},
+        "project": {"id": 123, "path_with_namespace": "org/ssl-monitor"},
+    }
+    with patch("orchestrator.routes.webhook.run_pipeline", new_callable=AsyncMock) as mock_pipeline:
+        mock_pipeline.return_value = []
+        r = client.post("/webhook/gitlab",
+                        json=body,
+                        headers={"X-Gitlab-Event": "Merge Request Hook"})
+    assert r.status_code == 202
+    assert r.json()["status"] == "accepted"
+    assert r.json()["mr_iid"] == "42"
+    mock_pipeline.assert_called_once()
+    call_payload = mock_pipeline.call_args[0][0]
+    assert call_payload["pr_id"] == "42"
+    assert call_payload["repo"] == "org/ssl-monitor"
