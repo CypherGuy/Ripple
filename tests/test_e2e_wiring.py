@@ -159,7 +159,7 @@ def test_pipeline_merges_webhook_incident_context_into_intelligence_response():
         if "analyze" in url:
             # Intelligence returns incident_context WITHOUT root_cause_summary
             r.json.return_value = {
-                **MOCK_INTEL, "incident_context": {"incident_id": "P-26051"}}
+                **MOCK_INTEL, "incident_context": {"incident_id": "P-26053"}}
         elif "scan" in url:
             r.json.return_value = {"hits": MOCK_SCAN_HITS}
         elif "fix" in url:
@@ -174,7 +174,7 @@ def test_pipeline_merges_webhook_incident_context_into_intelligence_response():
     mock_client.post = mock_post
 
     payload = {**WEBHOOK_PAYLOAD, "incident_context": {
-        "incident_id": "P-26051",
+        "incident_id": "P-26053",
         "root_cause_summary": "ssl-monitor hung on slow cert check",
         "duration_minutes": 47,
     }}
@@ -185,7 +185,7 @@ def test_pipeline_merges_webhook_incident_context_into_intelligence_response():
     # root_cause_summary should be filled in from webhook since Intelligence didn't return it
     assert ctx.get(
         "root_cause_summary") == "ssl-monitor hung on slow cert check"
-    assert ctx.get("incident_id") == "P-26051"
+    assert ctx.get("incident_id") == "P-26053"
 
 
 def test_pipeline_deduplicates_hits_by_service():

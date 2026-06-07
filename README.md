@@ -11,7 +11,7 @@ Ripple shift-lefts your incident history into your PR review: not static analysi
 
 The same pattern that caused your last outage is being reintroduced by AI-assisted PRs right now.
 
-A developer (or an AI coding agent) adds an HTTP call without a timeout. It passes code review. It merges. Six months later, a slow third-party endpoint causes your service to hang, the thread pool exhausts, and the cascade begins. That's P-26051: a 47-minute outage, £23,000 in estimated cost.
+A developer (or an AI coding agent) adds an HTTP call without a timeout. It passes code review. It merges. Six months later, a slow third-party endpoint causes your service to hang, the thread pool exhausts, and the cascade begins. That's P-26053: a 47-minute outage, £23,000 in estimated cost.
 
 The same pattern existed in seven other services, introduced by three different developers over eighteen months. Nobody knew. Nobody connected the PR that opened it to the incident that proved it was dangerous.
 
@@ -29,7 +29,7 @@ One PR fires the pipeline. Twelve services are scanned in parallel. Fix MRs appe
 
 ## Demo Environment
 
-The demo runs against **PulseCheck**, a real 12-service Python monitoring platform on GitLab. The incident is **P-26051**: a 47-minute outage caused by `ssl-monitor` hanging on a slow certificate check with no HTTP timeout. Ripple finds that same pattern across 8 of the 12 services and opens fix MRs before anything reaches production - the other 4 already have timeouts configured.
+The demo runs against **PulseCheck**, a real 12-service Python monitoring platform on GitLab. The incident is **P-26053**: a 47-minute outage caused by `ssl-monitor` hanging on a slow certificate check with no HTTP timeout. Ripple finds that same pattern across 8 of the 12 services and opens fix MRs before anything reaches production - the other 4 already have timeouts configured.
 
 **Generalisation:** Ripple's architecture is pattern-agnostic. Timeouts were chosen because they caused the demo incident, not because they are the only pattern. The same pipeline works for any incident-grounded pattern: SQL queries missing indexes, race conditions in async handlers, missing retry logic on third-party calls. Any engineering team with a monitoring platform and a git-based workflow is a potential user. Eight services fixed in one pipeline run across a 12-service codebase; the same architecture scales to 200.
 
@@ -130,7 +130,7 @@ Five tile states: **Idle, Scanning, Hit, Clean, Approval**. The moment Intellige
 
 Each hit tile shows:
 
-- **Incident: P-26051** - the specific incident that grounded this fix
+- **Incident: P-26053** - the specific incident that grounded this fix
 - **eval 1/3** - which iteration the self-correction loop passed on
 - **DT trace ↗** - direct link to the Dynatrace span for this fix
 - **View MR ↗** - the actual GitLab MR
@@ -157,7 +157,7 @@ All services run on Cloud Run `europe-west2`. Secrets are managed via GCP Secret
 
 ### One click
 
-Open the dashboard and click **▶ Trigger Demo**. The pipeline fires with the P-26051 incident payload, scanning all 12 PulseCheck services in real time. No terminal required.
+Open the dashboard and click **▶ Trigger Demo**. The pipeline fires with the P-26053 incident payload, scanning all 12 PulseCheck services in real time. No terminal required.
 
 This buttons simulates a real GitLab webhook: when a developer opens or updates a merge request, GitLab fires a POST to the Orchestrator's `/webhook` endpoint containing the PR diff and repo. Trigger Demo skips that, it calls the same pipeline directly with a hardcoded payload so a judge can see the full system without needing a GitLab account, webhook configuration, or an actual PR.
 
@@ -176,7 +176,7 @@ curl -X POST https://ripple-orchestrator-mctjeick3a-nw.a.run.app/webhook \
     "repo": "cypherguy-group/pulsecheck/ssl-monitor",
     "diff": "@@ -12 +12 @@ response = httpx.get(target_url)",
     "incident_context": {
-      "incident_id": "P-26051",
+      "incident_id": "P-26053",
       "duration_minutes": 47,
       "estimated_cost": "£23,000",
       "root_cause_summary": "PulseCheck ssl-monitor hung on slow cert check"

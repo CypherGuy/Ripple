@@ -1,3 +1,4 @@
+import logging
 import os
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -8,6 +9,7 @@ from intelligence.agent import extract_pattern
 
 load_dotenv()
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class AnalyzePayload(BaseModel):
@@ -22,11 +24,15 @@ async def analyze(payload: AnalyzePayload):
     env = os.environ["DT_ENVIRONMENT"]
     token = os.environ["DT_PLATFORM_TOKEN"]
 
-    incidents = fetch_incident_history(env, token, payload.diff)
+    try:
+        incidents = fetch_incident_history(env, token, payload.diff)
+    except Exception as e:
+        logger.error("fetch_incident_history failed (env=%s): %s", env, e, exc_info=True)
+        incidents = []
 
-    # When Dynatrace returns no incidents but the webhook supplied incident_context,
-    # use it as a synthetic incident so the severity floor fires correctly.
-    # Without this, a thin demo diff returns incidents=[] and the floor never applies.
+    # When Dynatrace returns no incidents (or is unavailable) but the webhook
+    # supplied incident_context, use it as a synthetic incident so Gemini still
+    # receives full incident data and the severity floor fires correctly.
     if not incidents and payload.incident_context:
         incidents = [payload.incident_context]
 

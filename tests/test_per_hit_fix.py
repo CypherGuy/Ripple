@@ -24,7 +24,7 @@ def client():
 FAKE_INTEL = {
     "pattern": "HTTP call without timeout",
     "risk_score": 9,
-    "incident_context": {"incident_id": "P-26051"},
+    "incident_context": {"incident_id": "P-26053"},
 }
 
 HIT_EVENT = {
@@ -60,7 +60,8 @@ def test_scan_event_always_broadcasts_any_event(client):
 
     with patch("orchestrator.routes.internal.broadcast_event", side_effect=capture):
         client.post("/internal/scan-event",
-                    json={"event": "agent_started", "service": "ssl-monitor", "timestamp": "t"},
+                    json={"event": "agent_started",
+                          "service": "ssl-monitor", "timestamp": "t"},
                     headers={"X-Internal-Secret": "test-secret"})
 
     assert len(broadcasted) == 1
@@ -72,7 +73,7 @@ def test_scan_event_hit_with_no_active_pipeline_does_not_create_task(client):
     assert pm._pipeline_state is None
 
     with patch("orchestrator.routes.internal.broadcast_event", new_callable=AsyncMock), \
-         patch("orchestrator.routes.internal.fix_hit", new_callable=AsyncMock) as mock_fix:
+            patch("orchestrator.routes.internal.fix_hit", new_callable=AsyncMock) as mock_fix:
         client.post("/internal/scan-event", json=HIT_EVENT,
                     headers={"X-Internal-Secret": "test-secret"})
 
@@ -92,7 +93,7 @@ def test_scan_event_hit_found_starts_fix_task(client):
     }
 
     with patch("orchestrator.routes.internal.broadcast_event", new_callable=AsyncMock), \
-         patch("orchestrator.routes.internal.fix_hit", new_callable=AsyncMock) as mock_fix:
+            patch("orchestrator.routes.internal.fix_hit", new_callable=AsyncMock) as mock_fix:
         mock_fix.return_value = {"mr_url": None, "service": "ssl-monitor"}
         client.post("/internal/scan-event", json=HIT_EVENT,
                     headers={"X-Internal-Secret": "test-secret"})
@@ -112,7 +113,7 @@ def test_scan_event_hit_deduplicates_same_service(client):
     }
 
     with patch("orchestrator.routes.internal.broadcast_event", new_callable=AsyncMock), \
-         patch("orchestrator.routes.internal.fix_hit", new_callable=AsyncMock) as mock_fix:
+            patch("orchestrator.routes.internal.fix_hit", new_callable=AsyncMock) as mock_fix:
         mock_fix.return_value = {"mr_url": None}
         client.post("/internal/scan-event", json=HIT_EVENT,
                     headers={"X-Internal-Secret": "test-secret"})
@@ -140,15 +141,18 @@ def test_run_pipeline_uses_scan_event_callback_url():
         return r
 
     async def mock_get(url, **kwargs):
-        r = MagicMock(); r.status_code = 200
-        r.json.return_value = [{"path": "ssl-monitor", "namespace": {"full_path": "org/proj"}}]
+        r = MagicMock()
+        r.status_code = 200
+        r.json.return_value = [{"path": "ssl-monitor",
+                                "namespace": {"full_path": "org/proj"}}]
         return r
 
     mock_client = AsyncMock()
     mock_client.post = mock_post
     mock_client.get = mock_get
 
-    asyncio.run(run_pipeline({"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
+    asyncio.run(run_pipeline(
+        {"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
 
     assert len(scan_payloads) == 1
     assert "/internal/scan-event" in scan_payloads[0].get("callback_url", "")
@@ -170,7 +174,8 @@ def test_pipeline_state_is_none_after_pipeline_completes():
         return r
 
     async def mock_get(url, **kwargs):
-        r = MagicMock(); r.status_code = 200
+        r = MagicMock()
+        r.status_code = 200
         r.json.return_value = []
         return r
 
@@ -178,7 +183,8 @@ def test_pipeline_state_is_none_after_pipeline_completes():
     mock_client.post = mock_post
     mock_client.get = mock_get
 
-    asyncio.run(run_pipeline({"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
+    asyncio.run(run_pipeline(
+        {"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
     assert pm._pipeline_state is None
 
 
@@ -207,7 +213,8 @@ def test_pipeline_fallback_starts_fix_for_hit_not_received_via_callback():
         return r
 
     async def mock_get(url, **kwargs):
-        r = MagicMock(); r.status_code = 200
+        r = MagicMock()
+        r.status_code = 200
         r.json.return_value = []
         return r
 
@@ -215,7 +222,8 @@ def test_pipeline_fallback_starts_fix_for_hit_not_received_via_callback():
     mock_client.post = mock_post
     mock_client.get = mock_get
 
-    asyncio.run(run_pipeline({"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
+    asyncio.run(run_pipeline(
+        {"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
     assert fix_calls["n"] == 1
 
 
@@ -237,7 +245,8 @@ def test_pipeline_does_not_double_fix_when_callback_already_started_task():
                 async def already_done():
                     return {"mr_url": None, "service": "ssl-monitor",
                             "self_correction_passed": True, "correction_iterations": 1}
-                pm._pipeline_state["tasks"]["ssl-monitor"] = asyncio.ensure_future(already_done())
+                pm._pipeline_state["tasks"]["ssl-monitor"] = asyncio.ensure_future(
+                    already_done())
                 pm._pipeline_state["hits"]["ssl-monitor"] = {}
             r.json.return_value = {
                 "hits": [{"service": "ssl-monitor", "file_path": "main.py",
@@ -251,7 +260,8 @@ def test_pipeline_does_not_double_fix_when_callback_already_started_task():
         return r
 
     async def mock_get(url, **kwargs):
-        r = MagicMock(); r.status_code = 200
+        r = MagicMock()
+        r.status_code = 200
         r.json.return_value = []
         return r
 
@@ -259,5 +269,6 @@ def test_pipeline_does_not_double_fix_when_callback_already_started_task():
     mock_client.post = mock_post
     mock_client.get = mock_get
 
-    asyncio.run(run_pipeline({"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
+    asyncio.run(run_pipeline(
+        {"pr_id": "x", "diff": "x"}, "trace-t", _client=mock_client))
     assert fix_calls["n"] == 0

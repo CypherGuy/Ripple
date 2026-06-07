@@ -67,13 +67,6 @@ export default function PipelineTimeline({ timeline }: Props) {
       >
         <span className="font-mono text-[10px] text-ripple-subtle uppercase tracking-widest">
           Pipeline Trace
-          {intelDuration && (
-            <span className="ml-3 text-ripple-text/40">
-              {isComplete
-                ? `completed in ${fmt(settledMax)}`
-                : `running ${fmt(now - startMs)}`}
-            </span>
-          )}
         </span>
         <span className="font-mono text-[10px] text-ripple-subtle">
           {open ? "▲" : "▼"}
@@ -193,7 +186,9 @@ export default function PipelineTimeline({ timeline }: Props) {
                       className={
                         outcome === "clean"
                           ? "text-ripple-clean"
-                          : "text-ripple-scan"
+                          : outcome === "hit"
+                            ? "text-ripple-hit"
+                            : "text-ripple-scan"
                       }
                     >
                       {fmt(scanEnd - (scanStart ?? startMs!))}

@@ -60,7 +60,11 @@ def _dt_fetch_incidents(diff: str) -> list[dict]:
     token = os.environ.get("DT_PLATFORM_TOKEN", "")
     if not env or not token:
         return []
-    return fetch_incident_history(env, token, diff)
+    try:
+        return fetch_incident_history(env, token, diff)
+    except Exception as e:
+        logger.error("fetch_incident_history failed (env=%s): %s", env, e, exc_info=True)
+        return []
 
 
 def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
@@ -104,19 +108,23 @@ def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
     text = ""
     dt_queried = False
 
-    with _tracer.start_as_current_span("ripple.intelligence.adk_run") as span:
-        span.set_attribute("model", "gemini-3-flash-preview")
-        span.set_attribute("service", "intelligence")
+    try:
+        with _tracer.start_as_current_span("ripple.intelligence.adk_run") as span:
+            span.set_attribute("model", "gemini-3-flash-preview")
+            span.set_attribute("service", "intelligence")
 
-        for event in runner.run(user_id="system", session_id=str(uuid.uuid4()), new_message=message):
-            if hasattr(event, "get_function_calls") and event.get_function_calls():
-                dt_queried = True
-            if event.is_final_response() and event.content and event.content.parts:
-                text = event.content.parts[0].text.strip()
-                break
+            for event in runner.run(user_id="system", session_id=str(uuid.uuid4()), new_message=message):
+                if hasattr(event, "get_function_calls") and event.get_function_calls():
+                    dt_queried = True
+                if event.is_final_response() and event.content and event.content.parts:
+                    text = event.content.parts[0].text.strip()
+                    break
 
-        span.set_attribute("dynatrace.queried", dt_queried)
-        span.set_attribute("response.length", len(text))
+            span.set_attribute("dynatrace.queried", dt_queried)
+            span.set_attribute("response.length", len(text))
+    except Exception as e:
+        logger.warning("call_gemini_adk ADK run failed (%s), falling back to direct call", e)
+        return call_gemini(prompt)
 
     try:
         parsed = json.loads(text)
@@ -124,7 +132,7 @@ def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
     except (json.JSONDecodeError, KeyError, ValueError) as e:
         logger.warning(
             "call_gemini_adk parse failed: %s | raw: %.200s", e, text)
-        return text, 5, "Could not parse structured response."
+        return call_gemini(prompt)
 
 
 def _parse_cost(cost_str: str) -> int:

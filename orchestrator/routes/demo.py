@@ -2,7 +2,7 @@ import os
 import time
 import uuid
 from fastapi import APIRouter, HTTPException
-from orchestrator.pipeline import run_pipeline
+from orchestrator.pipeline import run_pipeline, is_pipeline_running
 
 router = APIRouter()
 
@@ -21,7 +21,7 @@ _DEMO_PAYLOAD = {
         " def monitor():"
     ),
     "incident_context": {
-        "incident_id": "P-26051",
+        "incident_id": "P-26053",
         "duration_minutes": 47,
         "estimated_cost": "£23,000",
         "root_cause_summary": "PulseCheck ssl-monitor hung on slow cert check",
@@ -35,6 +35,8 @@ async def trigger_demo():
     Rate-limited to one trigger per 60 seconds to prevent cost abuse.
     The webhook secret stays server-side - no secret is exposed in the client bundle."""
     global _last_trigger_time
+    if is_pipeline_running():
+        raise HTTPException(status_code=429, detail="Pipeline already running.")
     now = time.time()
     if _last_trigger_time is not None and (now - _last_trigger_time) < _COOLDOWN_SECONDS:
         remaining = int(_COOLDOWN_SECONDS - (now - _last_trigger_time))

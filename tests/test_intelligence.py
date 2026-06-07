@@ -457,7 +457,7 @@ def test_extract_pattern_uses_severity_adjustment():
 def test_extract_pattern_p26051_still_scores_high():
     from intelligence.agent import extract_pattern
     incident = {"duration_minutes": 47,
-                "estimated_cost": "£23,000", "incident_id": "P-26051"}
+                "estimated_cost": "£23,000", "incident_id": "P-26053"}
     result = extract_pattern(
         "diff", [incident], _gemini_fn=lambda p: ("pattern", 7, "rationale"))
     # floor=8, boost=2 → max(7+2, 8) = max(9, 8) = 9

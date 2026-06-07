@@ -10,7 +10,8 @@ def _call_tool(env: str, token: str, tool: str, arguments: dict) -> dict:
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         timeout=15,
     )
-    r.raise_for_status()
+    if r.status_code >= 400:
+        raise RuntimeError(f"DT MCP returned {r.status_code}: {r.text[:200]}")
     return r.json()
 
 

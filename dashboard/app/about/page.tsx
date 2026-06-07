@@ -115,7 +115,7 @@ const mcps = [
 const differentiators = [
   { stat: "12", label: "services scanned in parallel" },
   { stat: "47 min", label: "outage duration, grounded in real traces" },
-  { stat: "P-26051", label: "real Dynatrace problem ID" },
+  { stat: "P-26053", label: "real Dynatrace problem ID" },
   { stat: "£23k", label: "quantified outage cost" },
 ];
 
@@ -587,7 +587,7 @@ export default function About() {
               </p>
               <p className="text-xs text-ripple-subtle leading-relaxed max-w-2xl">
                 Incident{" "}
-                <span className="font-mono text-ripple-accent">P-26051</span>:{" "}
+                <span className="font-mono text-ripple-accent">P-26053</span>:{" "}
                 <em>ssl-monitor</em> hung on a slow certificate check with no
                 HTTP timeout. A 47-minute outage, £23,000 estimated cost. Ripple
                 finds that same pattern across 8 of the 12 services and opens

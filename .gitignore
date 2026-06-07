@@ -18,3 +18,4 @@ dashboard/.next/
 .worktrees/*.log
 dynatrace-managed-mcp.log
 CLAUDE.md
+*.tsbuildinfo

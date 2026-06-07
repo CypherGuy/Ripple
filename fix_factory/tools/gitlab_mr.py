@@ -25,19 +25,19 @@ def create_mr(
     try:
         # Get default branch
         proj = httpx.get(f"{_GITLAB_BASE}/projects/{encoded}",
-                         headers=headers, timeout=10)
+                         headers=headers, timeout=30)
         proj.raise_for_status()
         default_branch = proj.json().get("default_branch", "main")
 
         # Create branch
         httpx.post(f"{_GITLAB_BASE}/projects/{encoded}/repository/branches",
                    json={"branch": branch, "ref": default_branch},
-                   headers=headers, timeout=10).raise_for_status()
+                   headers=headers, timeout=30).raise_for_status()
 
         # Get current file content
         path_enc = file_path.replace("/", "%2F")
         file_r = httpx.get(f"{_GITLAB_BASE}/projects/{encoded}/repository/files/{path_enc}",
-                           params={"ref": default_branch}, headers=headers, timeout=10)
+                           params={"ref": default_branch}, headers=headers, timeout=30)
         file_r.raise_for_status()
         current_content = base64.b64decode(file_r.json()["content"]).decode()
 
@@ -47,7 +47,7 @@ def create_mr(
         httpx.put(f"{_GITLAB_BASE}/projects/{encoded}/repository/files/{path_enc}",
                   json={"branch": branch, "content": new_content,
                         "commit_message": f"fix: add timeout to prevent {incident_id} pattern"},
-                  headers=headers, timeout=10).raise_for_status()
+                  headers=headers, timeout=30).raise_for_status()
 
         # Open MR
         duration = incident_context.get("duration_minutes", "?")
@@ -75,7 +75,7 @@ def create_mr(
                                   f"{verification_note}"
                               ),
         },
-            headers=headers, timeout=10)
+            headers=headers, timeout=30)
         mr_r.raise_for_status()
         return mr_r.json().get("web_url")
     except Exception as e:

@@ -61,7 +61,8 @@ def test_generate_fix_returns_required_keys():
 
 def test_generate_fix_works_with_empty_context():
     from fix_factory.agent import generate_fix
-    hit = {**AUTH_HIT, "per_service_history": [], "incident_context": {"incident_id": "DT-4821"}}
+    hit = {**AUTH_HIT, "per_service_history": [],
+           "incident_context": {"incident_id": "DT-4821"}}
     result = generate_fix(
         hit,
         traces=[],
@@ -74,17 +75,17 @@ def test_generate_fix_works_with_empty_context():
 
 def test_post_fix_returns_patch_and_explanation(client):
     with patch("fix_factory.routes.fix.get_incident_traces", return_value=[]), \
-         patch("fix_factory.routes.fix.get_fix_precedents", return_value=[]), \
-         patch("fix_factory.routes.fix.run_with_correction", return_value={
-             "patch": MOCK_PATCH,
-             "old_line": MOCK_OLD_LINE,
-             "new_line": MOCK_NEW_LINE,
-             "fix_explanation": MOCK_EXPLANATION,
-             "mr_url": None,
-             "self_correction_passed": True,
-             "correction_iterations": 1,
-             "failure_reason": None,
-         }):
+            patch("fix_factory.routes.fix.get_fix_precedents", return_value=[]), \
+            patch("fix_factory.routes.fix.run_with_correction", return_value={
+                "patch": MOCK_PATCH,
+                "old_line": MOCK_OLD_LINE,
+                "new_line": MOCK_NEW_LINE,
+                "fix_explanation": MOCK_EXPLANATION,
+                "mr_url": None,
+                "self_correction_passed": True,
+                "correction_iterations": 1,
+                "failure_reason": None,
+            }):
         r = client.post("/fix", json=AUTH_HIT)
 
     assert r.status_code == 200
@@ -102,31 +103,34 @@ def test_post_fix_rejects_missing_file_path(client):
 def test_generate_fix_prompt_uses_incident_id_not_trace_ids():
     from fix_factory.agent import generate_fix
     prompts_seen = []
+
     def capture(prompt):
         prompts_seen.append(prompt)
         return (MOCK_OLD_LINE, MOCK_NEW_LINE, MOCK_EXPLANATION)
-    hit = {**AUTH_HIT, "incident_context": {"incident_id": "P-26051", "root_cause_summary": "ssl-monitor hung"}}
+    hit = {**AUTH_HIT, "incident_context": {"incident_id": "P-26053",
+                                            "root_cause_summary": "ssl-monitor hung"}}
     generate_fix(hit, traces=[], precedents=[], _gemini_fn=capture)
-    assert "P-26051" in prompts_seen[0]
-    assert "always use the incident ID" in prompts_seen[0].lower() or "incident_id" in prompts_seen[0].lower()
+    assert "P-26053" in prompts_seen[0]
+    assert "always use the incident ID" in prompts_seen[0].lower(
+    ) or "incident_id" in prompts_seen[0].lower()
 
 
 def test_post_fix_rejects_unknown_service(client):
     bad = {**AUTH_HIT, "service": "../../etc/passwd"}
     with patch("fix_factory.routes.fix.get_incident_traces", return_value=[]), \
-         patch("fix_factory.routes.fix.get_fix_precedents", return_value=[]):
+            patch("fix_factory.routes.fix.get_fix_precedents", return_value=[]):
         r = client.post("/fix", json=bad)
     assert r.status_code == 400
 
 
 def test_post_fix_accepts_known_service(client):
     with patch("fix_factory.routes.fix.get_incident_traces", return_value=[]), \
-         patch("fix_factory.routes.fix.get_fix_precedents", return_value=[]), \
-         patch("fix_factory.routes.fix.run_with_correction", return_value={
-             "patch": MOCK_PATCH, "old_line": MOCK_OLD_LINE, "new_line": MOCK_NEW_LINE,
-             "fix_explanation": MOCK_EXPLANATION, "mr_url": None,
-             "self_correction_passed": True, "correction_iterations": 1, "failure_reason": None,
-         }):
+            patch("fix_factory.routes.fix.get_fix_precedents", return_value=[]), \
+            patch("fix_factory.routes.fix.run_with_correction", return_value={
+                "patch": MOCK_PATCH, "old_line": MOCK_OLD_LINE, "new_line": MOCK_NEW_LINE,
+                "fix_explanation": MOCK_EXPLANATION, "mr_url": None,
+                "self_correction_passed": True, "correction_iterations": 1, "failure_reason": None,
+            }):
         r = client.post("/fix", json={**AUTH_HIT, "service": "http-monitor"})
     assert r.status_code == 200
 
@@ -137,7 +141,8 @@ def test_get_incident_traces_returns_empty_on_bad_credentials():
     dt_mod._trace_cache.clear()
     from fix_factory.tools.dynatrace_traces import get_incident_traces
     # Async version catches exceptions and returns [] rather than raising
-    result = asyncio.run(get_incident_traces("bad.env.com", "bad-token", "DT-9999"))
+    result = asyncio.run(get_incident_traces(
+        "bad.env.com", "bad-token", "DT-9999"))
     assert result == []
 
 
@@ -170,7 +175,8 @@ def test_get_incident_traces_rejects_invalid_incident_id():
     import asyncio
     from fix_factory.tools.dynatrace_traces import get_incident_traces
     with pytest.raises(ValueError):
-        asyncio.run(get_incident_traces("env.example.com", "token", '" | fetch logs'))
+        asyncio.run(get_incident_traces(
+            "env.example.com", "token", '" | fetch logs'))
 
 
 # --- _apply_patch unit tests ---
@@ -178,7 +184,8 @@ def test_get_incident_traces_rejects_invalid_incident_id():
 def test_apply_patch_exact_match():
     from fix_factory.tools.gitlab_mr import _apply_patch
     content = "import requests\n\ndef get_data(url):\n    response = requests.get(url)\n    return response\n"
-    result = _apply_patch(content, "    response = requests.get(url)", "    response = requests.get(url, timeout=5)")
+    result = _apply_patch(content, "    response = requests.get(url)",
+                          "    response = requests.get(url, timeout=5)")
     assert "timeout=5" in result
     assert "requests.get(url)\n" not in result
 
@@ -187,7 +194,8 @@ def test_apply_patch_strip_based_fallback():
     from fix_factory.tools.gitlab_mr import _apply_patch
     # File uses 2-space indent, Gemini assumed 4-space
     content = "def get(url):\n  response = requests.get(url)\n  return response\n"
-    result = _apply_patch(content, "    response = requests.get(url)", "    response = requests.get(url, timeout=5)")
+    result = _apply_patch(content, "    response = requests.get(url)",
+                          "    response = requests.get(url, timeout=5)")
     assert "timeout=5" in result
 
 

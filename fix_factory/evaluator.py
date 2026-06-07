@@ -25,13 +25,23 @@ def _gemini_client():
 
 
 def _default_gemini(prompt: str) -> str:
+    import time
     client = _gemini_client()
-    response = client.models.generate_content(
-        model="gemini-3-flash-preview", contents=prompt)
-    text = response.text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-    return text
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3-flash-preview", contents=prompt)
+            text = response.text.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            return text
+        except Exception as e:
+            if attempt < 2 and "503" in str(e):
+                time.sleep(attempt + 1)
+                continue
+            logger.warning("_default_gemini (evaluator) failed: %s", e)
+            return ""
+    return ""
 
 
 def _fetch_incident_traces_for_eval(incident_id: str) -> list[dict]:
@@ -128,16 +138,6 @@ def evaluate_fix(hit: dict, patch: str, _gemini_fn=None) -> dict:
     ctx = hit.get("incident_context", {})
 
     if _gemini_fn is None:
-        # ADK path with 25s hard cap. Falls back to direct Gemini on timeout/error
-        # so iterations are never wasted waiting for a hung ADK call.
-        ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        try:
-            result = ex.submit(call_evaluator_adk, hit, patch).result(timeout=10)
-            return result
-        except Exception:
-            logger.warning("call_evaluator_adk timed out or failed; falling back to direct Gemini")
-        finally:
-            ex.shutdown(wait=False, cancel_futures=True)
         _gemini_fn = _default_gemini
     lines = hit.get("matching_lines", [])
 

@@ -95,7 +95,7 @@ def test_demo_trigger_fires_pipeline_with_pulsecheck_payload(client):
         mock.return_value = []
         client.post("/demo/trigger")
     payload_arg = mock.call_args[0][0]
-    assert payload_arg["incident_context"]["incident_id"] == "P-26051"
+    assert payload_arg["incident_context"]["incident_id"] == "P-26053"
     assert "pulsecheck" in payload_arg["repo"]
     assert payload_arg["incident_context"].get("root_cause_summary") != ""
 
@@ -124,17 +124,15 @@ def test_demo_trigger_allows_request_after_cooldown(client):
     assert r.status_code == 202
 
 
-
 # ---------------------------------------------------------------------------
 # Trigger Demo button - webhook must accept incident_context in the payload
 # ---------------------------------------------------------------------------
-
 DEMO_PAYLOAD = {
     "pr_id": "demo-run",
     "repo": "cypherguy-group/pulsecheck/ssl-monitor",
     "diff": "@@ -12 +12 @@ response = httpx.get(target_url)",
     "incident_context": {
-        "incident_id": "P-26051",
+        "incident_id": "P-26053",
         "duration_minutes": 47,
         "estimated_cost": "£23,000",
         "root_cause_summary": "PulseCheck ssl-monitor hung on slow cert check",
@@ -164,7 +162,7 @@ def test_webhook_forwards_incident_context_to_pipeline(client):
 
     assert "incident_context" in captured.get("payload", {}), \
         "incident_context was not forwarded to run_pipeline"
-    assert captured["payload"]["incident_context"]["incident_id"] == "P-26051"
+    assert captured["payload"]["incident_context"]["incident_id"] == "P-26053"
 
 
 def test_pipeline_uses_webhook_incident_context_when_intel_returns_none():
@@ -212,7 +210,7 @@ def test_pipeline_uses_webhook_incident_context_when_intel_returns_none():
         "repo": "cypherguy-group/pulsecheck/ssl-monitor",
         "diff": "@@ response = httpx.get(url)",
         "incident_context": {
-            "incident_id": "P-26051",
+            "incident_id": "P-26053",
             "duration_minutes": 47,
             "root_cause_summary": "ssl-monitor hung on slow cert check",
         },
@@ -223,8 +221,8 @@ def test_pipeline_uses_webhook_incident_context_when_intel_returns_none():
 
     assert fix_payloads_seen, "Fix Factory was never called"
     fix_ctx = fix_payloads_seen[0].get("incident_context", {})
-    assert fix_ctx.get("incident_id") == "P-26051", \
-        f"Expected P-26051 in incident_context passed to Fix Factory, got: {fix_ctx}"
+    assert fix_ctx.get("incident_id") == "P-26053", \
+        f"Expected P-26053 in incident_context passed to Fix Factory, got: {fix_ctx}"
     assert fix_ctx.get(
         "root_cause_summary") == "ssl-monitor hung on slow cert check"
 
@@ -451,7 +449,8 @@ def test_gitlab_webhook_ignores_non_open_action(client):
     import os
     os.environ.pop("GITLAB_WEBHOOK_SECRET", None)
     r = client.post("/webhook/gitlab",
-                    json={"object_attributes": {"action": "merge"}, "project": {}},
+                    json={"object_attributes": {
+                        "action": "merge"}, "project": {}},
                     headers={"X-Gitlab-Event": "Merge Request Hook"})
     assert r.status_code == 202
     assert r.json()["status"] == "ignored"
