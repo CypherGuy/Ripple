@@ -30,12 +30,6 @@ async def analyze(payload: AnalyzePayload):
         logger.error("fetch_incident_history failed (env=%s): %s", env, e, exc_info=True)
         incidents = []
 
-    # When Dynatrace returns no incidents (or is unavailable) but the webhook
-    # supplied incident_context, use it as a synthetic incident so Gemini still
-    # receives full incident data and the severity floor fires correctly.
-    if not incidents and payload.incident_context:
-        incidents = [payload.incident_context]
-
     result = extract_pattern(payload.diff, incidents)
 
     wins = find_similar_wins(result["pattern"])

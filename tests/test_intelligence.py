@@ -229,49 +229,53 @@ def test_call_gemini_adk_runner_receives_llm_agent_instance():
 
 
 def test_call_gemini_adk_falls_back_when_json_unparseable():
-    """Returns (raw_text, 5, fallback_rationale) when the event text is not valid JSON."""
+    """Falls back to call_gemini when the ADK event text is not valid JSON."""
     from intelligence.agent import call_gemini_adk
 
     final = _make_final_event("This is not JSON.")
 
-    with patch("intelligence.agent.Runner") as MockRunner:
+    with patch("intelligence.agent.Runner") as MockRunner, \
+         patch("intelligence.agent.call_gemini", return_value=("fallback pattern", 5, "fallback rationale")) as mock_gemini:
         MockRunner.return_value.run.return_value = iter([final])
         pattern, score, rationale = call_gemini_adk("prompt")
 
+    mock_gemini.assert_called_once_with("prompt")
     assert score == 5
     assert isinstance(pattern, str)
     assert isinstance(rationale, str)
 
 
 def test_call_gemini_adk_falls_back_when_no_final_event():
-    """Returns fallback tuple when no event is a final response."""
+    """Falls back to call_gemini when no event is a final response."""
     from intelligence.agent import call_gemini_adk
 
-    with patch("intelligence.agent.Runner") as MockRunner:
+    with patch("intelligence.agent.Runner") as MockRunner, \
+         patch("intelligence.agent.call_gemini", return_value=("fallback", 5, "reason")) as mock_gemini:
         MockRunner.return_value.run.return_value = iter(
             [_make_non_final_event()])
         _, score, _ = call_gemini_adk("prompt")
 
+    mock_gemini.assert_called_once()
     assert score == 5
 
 
-def test_extract_pattern_calls_adk_when_no_gemini_fn_given():
-    """extract_pattern uses call_gemini_adk by default (no _gemini_fn supplied)."""
+def test_extract_pattern_calls_gemini_when_no_gemini_fn_given():
+    """extract_pattern uses call_gemini by default (no _gemini_fn supplied)."""
     from intelligence.agent import extract_pattern
 
-    adk_calls = []
+    gemini_calls = []
 
-    def fake_adk(prompt: str):
-        adk_calls.append(prompt)
+    def fake_gemini(prompt: str):
+        gemini_calls.append(prompt)
         return ("HTTP call without timeout", 9, "Matches DT-4821")
 
-    with patch("intelligence.agent.call_gemini_adk", side_effect=fake_adk):
+    with patch("intelligence.agent.call_gemini", side_effect=fake_gemini):
         result = extract_pattern(
             diff="@@ -12 +12 @@ response = httpx.get(url)",
             incidents=[{"incident_id": "DT-4821", "duration_minutes": 47}],
         )
 
-    assert len(adk_calls) == 1
+    assert len(gemini_calls) == 1
     assert result["pattern"] == "HTTP call without timeout"
     assert result["risk_score"] == 9
 

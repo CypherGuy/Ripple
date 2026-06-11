@@ -1,5 +1,6 @@
 import asyncio
 import concurrent.futures
+import os
 from datetime import datetime, timezone
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -7,6 +8,14 @@ from scanner.agent import scan_service
 from scanner.streaming import emit_event
 
 router = APIRouter()
+
+# Launch agents on a staggered schedule rather than all at once. Firing 12 ADK
+# agents simultaneously stampedes the Gemini API (rate-limit/503), which made
+# every ADK scan time out and fall back to regex. Spacing the launches keeps
+# only ~1-2 agents calling the model at any moment so the real ADK path
+# actually completes, and makes the dashboard tiles light up progressively
+# instead of all flipping at once. Tunable live via SCAN_STAGGER_SECONDS.
+_STAGGER_SECONDS = float(os.environ.get("SCAN_STAGGER_SECONDS", "1.2"))
 
 
 class ServiceEntry(BaseModel):
@@ -37,7 +46,11 @@ async def scan(payload: ScanPayload):
     executor = concurrent.futures.ThreadPoolExecutor(
         max_workers=len(payload.services))
 
-    async def scan_one(svc: ServiceEntry) -> list[dict]:
+    async def scan_one(svc: ServiceEntry, idx: int) -> list[dict]:
+        # Stagger the start so agents don't all hit Gemini in the same instant.
+        if idx and _STAGGER_SECONDS > 0:
+            await asyncio.sleep(idx * _STAGGER_SECONDS)
+
         emit_event(payload.callback_url, {
             "event": "agent_started",
             "service": svc.name,
@@ -81,7 +94,8 @@ async def scan(payload: ScanPayload):
         return tagged
 
     try:
-        results = await asyncio.gather(*[scan_one(svc) for svc in payload.services])
+        results = await asyncio.gather(
+            *[scan_one(svc, i) for i, svc in enumerate(payload.services)])
     finally:
         executor.shutdown(wait=False, cancel_futures=True)
 

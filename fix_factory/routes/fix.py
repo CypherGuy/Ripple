@@ -49,8 +49,14 @@ async def fix(payload: FixPayload):
     namespace = f"{DEMO_NAMESPACE}/{payload.service}"
 
     incident_id = payload.incident_context.get("incident_id", "")
-    traces = await get_incident_traces(env, dt_token, incident_id)
-    precedents = get_fix_precedents(namespace, gl_token)
+    # Fetch DT traces and GitLab precedents concurrently to cut pre-fix latency
+    traces_result, precedents_result = await asyncio.gather(
+        get_incident_traces(env, dt_token, incident_id),
+        asyncio.to_thread(get_fix_precedents, namespace, gl_token),
+        return_exceptions=True,
+    )
+    traces = traces_result if isinstance(traces_result, list) else []
+    precedents = precedents_result if isinstance(precedents_result, list) else []
 
     hit = payload.model_dump()
     hit["gitlab_namespace"] = namespace
@@ -58,4 +64,4 @@ async def fix(payload: FixPayload):
     # directly in an async endpoint blocks the event loop, serialising all
     # concurrent /fix requests. to_thread moves it off the event loop so all
     # 8 services process in parallel.
-    return await asyncio.to_thread(run_with_correction, hit, traces, precedents)
+    return await asyncio.to_thread(run_with_correction, hit, traces, precedents, max_iterations=2)

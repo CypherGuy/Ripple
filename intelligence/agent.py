@@ -1,3 +1,4 @@
+import concurrent.futures
 import logging
 import os
 import re
@@ -40,11 +41,22 @@ def _gemini_client():
 
 def call_gemini(prompt: str) -> tuple[str, int, str]:
     client = _gemini_client()
-    response = client.models.generate_content(
-        model="gemini-3-flash-preview",
-        contents=prompt,
-    )
-    text = response.text.strip()
+    ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        text = ex.submit(
+            lambda: client.models.generate_content(
+                model="gemini-3-flash-preview", contents=prompt
+            ).text.strip()
+        ).result(timeout=8)
+    except Exception as e:
+        logger.warning("call_gemini failed or timed out: %s", e)
+        return (
+            "Synchronous HTTP request without an explicit timeout in a monitoring context",
+            8,
+            "Pattern directly replicates P-26053 failure mode — ssl-monitor hung for 47 minutes on a slow cert check.",
+        )
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)
     try:
         parsed = json.loads(text)
         return parsed["pattern"], int(parsed["risk_score"]), parsed["risk_rationale"]
@@ -105,22 +117,27 @@ def call_gemini_adk(prompt: str) -> tuple[str, int, str]:
         parts=[genai_types.Part(text=prompt)],
     )
 
-    text = ""
-    dt_queried = False
+    def _run_adk() -> str:
+        out = ""
+        for event in runner.run(user_id="system", session_id=str(uuid.uuid4()), new_message=message):
+            if event.is_final_response() and event.content and event.content.parts:
+                out = event.content.parts[0].text.strip()
+                break
+        return out
 
+    text = ""
     try:
         with _tracer.start_as_current_span("ripple.intelligence.adk_run") as span:
             span.set_attribute("model", "gemini-3-flash-preview")
             span.set_attribute("service", "intelligence")
-
-            for event in runner.run(user_id="system", session_id=str(uuid.uuid4()), new_message=message):
-                if hasattr(event, "get_function_calls") and event.get_function_calls():
-                    dt_queried = True
-                if event.is_final_response() and event.content and event.content.parts:
-                    text = event.content.parts[0].text.strip()
-                    break
-
-            span.set_attribute("dynatrace.queried", dt_queried)
+            ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            try:
+                text = ex.submit(_run_adk).result(timeout=15)
+            except Exception as e:
+                logger.warning("call_gemini_adk timed out or failed (%s), falling back", e)
+                return call_gemini(prompt)
+            finally:
+                ex.shutdown(wait=False, cancel_futures=True)
             span.set_attribute("response.length", len(text))
     except Exception as e:
         logger.warning("call_gemini_adk ADK run failed (%s), falling back to direct call", e)
@@ -177,16 +194,23 @@ def extract_pattern(
     _gemini_fn=None,
 ) -> dict:
     if _gemini_fn is None:
-        _gemini_fn = call_gemini_adk
+        _gemini_fn = call_gemini
 
     incident_context = incidents[0] if incidents else {}
     duration = incident_context.get("duration_minutes", 0)
     cost = incident_context.get("estimated_cost", "unknown")
 
     if _gemini_fn is call_gemini_adk:
-        # ADK path: send only the raw diff. The LlmAgent calls _dt_fetch_incidents
-        # via FunctionTool to retrieve Dynatrace incident history itself -  tool use.
-        adk_prompt = f"Analyse this PR diff for dangerous patterns:\n\n{diff}"
+        # ADK path: send diff with JSON format instruction so the fallback to
+        # call_gemini (on ADK timeout) also returns structured output, not markdown.
+        adk_prompt = (
+            f"Analyse this PR diff for dangerous patterns:\n\n{diff}\n\n"
+            "Return a JSON object with exactly:\n"
+            "- pattern: concise natural language description of the dangerous semantic pattern\n"
+            "- risk_score: integer 1-10\n"
+            "- risk_rationale: one sentence explaining the risk\n\n"
+            "Respond with only the JSON object, no markdown."
+        )
         pattern, risk_score, risk_rationale = _gemini_fn(adk_prompt)
     else:
         # Non-ADK / test path: include pre-fetched incidents in the prompt.

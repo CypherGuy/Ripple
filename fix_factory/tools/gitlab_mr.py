@@ -7,6 +7,10 @@ logger = logging.getLogger(__name__)
 
 _GITLAB_BASE = "https://gitlab.com/api/v4"
 
+# Single source of truth in shared/formatting.py; aliased here so existing
+# imports/tests of fix_factory.tools.gitlab_mr._format_cost keep working.
+from shared.formatting import format_cost as _format_cost
+
 
 def create_mr(
     gitlab_namespace: str,
@@ -51,7 +55,7 @@ def create_mr(
 
         # Open MR
         duration = incident_context.get("duration_minutes", "?")
-        cost = incident_context.get("estimated_cost", "unknown")
+        cost = _format_cost(incident_context.get("estimated_cost", "unknown"))
         if evaluated_on == "technical_merit":
             verification_note = (
                 "_Verified on technical merit - no incident root cause was available "

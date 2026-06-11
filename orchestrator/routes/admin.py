@@ -7,27 +7,40 @@ router = APIRouter()
 _GITLAB_BASE = "https://gitlab.com/api/v4"
 
 
+def _should_close(branch: str) -> bool:
+    return branch.startswith("ripple/") or branch.startswith("feature/ssl-expiry-")
+
+
 def close_all_ripple_mrs(namespaces: list[str], token: str) -> dict:
     headers = {"PRIVATE-TOKEN": token}
     closed = 0
     errors = 0
 
+    # Collect unique group prefixes to sweep at group level (catches backup_trigger branches)
+    groups: set[str] = set()
     for ns in namespaces:
-        encoded = ns.replace("/", "%2F")
+        parts = ns.split("/")
+        if len(parts) >= 2:
+            groups.add("/".join(parts[:-1]))
+
+    for group in groups:
+        encoded = group.replace("/", "%2F")
         try:
             r = httpx.get(
-                f"{_GITLAB_BASE}/projects/{encoded}/merge_requests",
+                f"{_GITLAB_BASE}/groups/{encoded}/merge_requests",
                 params={"state": "opened", "per_page": 100},
                 headers=headers,
-                timeout=10,
+                timeout=15,
             )
             r.raise_for_status()
             for mr in r.json():
-                if not mr.get("source_branch", "").startswith("ripple/"):
+                if not _should_close(mr.get("source_branch", "")):
                     continue
+                project_id = mr.get("project_id")
+                iid = mr.get("iid")
                 try:
                     httpx.put(
-                        f"{_GITLAB_BASE}/projects/{encoded}/merge_requests/{mr['iid']}",
+                        f"{_GITLAB_BASE}/projects/{project_id}/merge_requests/{iid}",
                         json={"state_event": "close"},
                         headers=headers,
                         timeout=10,

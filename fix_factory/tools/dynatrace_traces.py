@@ -34,7 +34,7 @@ async def get_incident_traces(env: str, token: str, incident_id: str) -> list[di
     if incident_id in _trace_cache:
         return _trace_cache[incident_id]
 
-    dql = f'fetch dt.davis.problems | filter display_id == "{incident_id}" | limit 1'
+    dql = f'fetch bizevents, from:now()-30d | filter event.type == "ripple.incident" and incident_id == "{incident_id}" | limit 1'
     try:
         async with httpx.AsyncClient() as client:
             r = await client.post(

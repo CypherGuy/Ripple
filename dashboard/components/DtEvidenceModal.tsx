@@ -16,7 +16,7 @@ function cleanRootCause(raw: string): string {
     .trim()
 }
 
-const DT_ENV = 'jfr54188.apps.dynatrace.com'
+const DT_ENV = 'qsy92326.apps.dynatrace.com'
 const MCP_ENDPOINT = `https://${DT_ENV}/platform-reserved/mcp-gateway/v0.1/servers/dynatrace-mcp/mcp`
 
 interface Props {

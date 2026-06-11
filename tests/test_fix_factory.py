@@ -204,3 +204,17 @@ def test_apply_patch_returns_unchanged_when_no_match():
     content = "x = 1\ny = 2\n"
     result = _apply_patch(content, "z = 3", "z = 4")
     assert result == content
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("23000", "£23,000"),        # Dynatrace bizEvent raw number string
+    (23000, "£23,000"),          # numeric
+    ("£23,000", "£23,000"),      # already formatted — pass through
+    ("1234567", "£1,234,567"),   # comma grouping
+    ("unknown", "unknown"),      # non-numeric sentinel left alone
+    ("", "unknown"),             # empty -> unknown
+    (None, "unknown"),           # missing -> unknown
+])
+def test_format_cost(raw, expected):
+    from fix_factory.tools.gitlab_mr import _format_cost
+    assert _format_cost(raw) == expected

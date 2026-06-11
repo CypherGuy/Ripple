@@ -62,6 +62,12 @@ async def webhook_gitlab(
     if attrs.get("action") != "open":
         return {"status": "ignored", "reason": f"action={attrs.get('action')}"}
 
+    # Ignore Ripple's own fix MRs — otherwise opening a fix MR re-triggers the pipeline.
+    # fix factory uses ripple/ prefix; feature/ssl-expiry- are human demo triggers, keep those.
+    source_branch = attrs.get("source_branch", "")
+    if source_branch.startswith("ripple/"):
+        return {"status": "ignored", "reason": "ripple-generated branch"}
+
     now = time.time()
     if _last_webhook_time is not None and (now - _last_webhook_time) < _COOLDOWN_SECONDS:
         remaining = int(_COOLDOWN_SECONDS - (now - _last_webhook_time))
@@ -94,7 +100,7 @@ async def webhook_gitlab(
     payload = {
         "pr_id": mr_iid,
         "repo": repo,
-        "diff": diff,
+        "diff": diff or "",
         "incident_context": {
             "incident_id": "P-26053",
             "duration_minutes": 47,

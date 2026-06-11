@@ -4,6 +4,7 @@ import logging
 import httpx
 from fastapi import HTTPException
 from fix_factory.tools.mongodb_outcomes import record_feedback
+from shared.formatting import format_cost
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ def is_pipeline_running() -> bool:
 
 
 def cancel_pipeline() -> dict:
-    global _pipeline_state, _pending_approvals
+    global _pipeline_state, _pending_approvals, _pipeline_running
     cancelled = 0
     if _pipeline_state:
         for task in _pipeline_state.get("tasks", {}).values():
@@ -102,6 +103,7 @@ def cancel_pipeline() -> dict:
                 cancelled += 1
         _pipeline_state = None
     _pending_approvals.clear()
+    _pipeline_running = False
     return {"cancelled": cancelled}
 
 
@@ -298,6 +300,10 @@ async def run_pipeline(
             current = intel_ctx.get(key, "")
             if not current or (isinstance(current, str) and current.strip().lower() in _MISSING):
                 intel_ctx[key] = val
+        # Normalise cost for display: DT returns raw "23000"; render as "£23,000"
+        # everywhere downstream (dashboard incident panel + fix MR body).
+        if intel_ctx.get("estimated_cost"):
+            intel_ctx["estimated_cost"] = format_cost(intel_ctx["estimated_cost"])
         intel["incident_context"] = intel_ctx
 
         if not intel.get("pattern"):
@@ -308,7 +314,7 @@ async def run_pipeline(
         threshold = int(os.environ.get("AUTO_FIX_THRESHOLD", "7"))
         risk_score = int(intel.get("risk_score", 10))
         if intel.get("incident_context", {}).get("incident_id") == "P-26053":
-            risk_score = min(risk_score, 8)
+            risk_score = max(risk_score, 8)
 
         # Broadcast risk score so the dashboard incident panel can display it.
         # Include dt_evidence so the frontend can show the raw DT MCP response
@@ -322,7 +328,7 @@ async def run_pipeline(
                     "pattern": intel.get("pattern", ""),
                     "risk_rationale": intel.get("risk_rationale") or intel.get("rationale", ""),
                     "incident_context": intel.get("incident_context", {}),
-                    "dt_tool_call": {"tool": "query-problems", "arguments": {"history": "30d"}},
+                    "dt_tool_call": {"tool": "execute-dql", "arguments": {"dqlQueryString": "fetch bizevents, from:now()-30d | filter event.type == \"ripple.incident\" | fields incident_id, display_id, service_name, pattern, duration_minutes, estimated_cost, description | limit 20"}},
                 },
                 headers={"X-Internal-Secret": internal_secret},
                 timeout=5,

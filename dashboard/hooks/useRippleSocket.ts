@@ -332,6 +332,8 @@ export function useRippleSocket() {
   }, []);
 
   function reset() {
+    // Cancel any running pipeline server-side before clearing frontend state
+    fetch("/api/admin/cancel", { method: "POST" }).catch(() => {});
     settled.current.clear();
     settledMrUrls.current.clear();
     setServices(new Map());

@@ -226,8 +226,10 @@ export default function Dashboard() {
       </header>
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6 flex flex-col gap-5">
-        {/* Incident context */}
-        <IncidentPanel riskScore={summary.riskScore} dtEvidence={summary.dtEvidence} />
+        {/* Incident context — revealed as soon as Intelligence completes (risk_scored event) */}
+        {summary.riskScore !== null && (
+          <IncidentPanel riskScore={summary.riskScore} dtEvidence={summary.dtEvidence} />
+        )}
 
         {/* Summary */}
         <div className="rounded-lg border border-white/5 bg-ripple-surface p-4">

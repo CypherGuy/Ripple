@@ -31,9 +31,28 @@ def _parse_records(content: list) -> list[dict]:
 
 
 def fetch_incident_history(env: str, token: str, diff: str) -> list[dict]:
-    data = _call_tool(env, token, "query-problems", {"history": "30d"})
+    dql = (
+        'fetch bizevents, from:now()-30d'
+        ' | filter event.type == "ripple.incident"'
+        ' | fields incident_id, display_id, service_name, pattern,'
+        '   duration_minutes, estimated_cost, description'
+        ' | limit 20'
+    )
+    data = _call_tool(env, token, "execute-dql", {"dqlQueryString": dql})
     content = data.get("result", {}).get("content", [])
-    return _parse_records(content)
+    records = _parse_records(content)
+    return [
+        {
+            "incident_id": r.get("incident_id", ""),
+            "display_id": r.get("display_id", ""),
+            "service_name": r.get("service_name", ""),
+            "pattern": r.get("pattern", ""),
+            "duration_minutes": int(r.get("duration_minutes") or 0),
+            "estimated_cost": str(r.get("estimated_cost", "")),
+            "description": r.get("description", ""),
+        }
+        for r in records
+    ]
 
 
 def execute_dql(env: str, token: str, dql_query: str) -> list[dict]:
