@@ -34,6 +34,9 @@ class FixPayload(BaseModel):
     matching_lines: list[MatchingLine]
     incident_context: dict
     per_service_history: list[dict] = []
+    # MR source branch when webhook-triggered; the fix MR targets this branch so the
+    # incoming change is fixed before merge. None means target the default branch.
+    ref: str | None = None
 
 
 DEMO_NAMESPACE = os.environ.get("DEMO_NAMESPACE", "cypherguy-group/pulsecheck")

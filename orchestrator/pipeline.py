@@ -231,6 +231,17 @@ async def run_pipeline(
         gitlab_token = os.environ.get("GITLAB_TOKEN", "")
         services = await fetch_services_from_gitlab(namespace, gitlab_token, _client)
 
+        # Shift-left: when a real MR triggered this run, scan the MR's branch for the
+        # service it touches (so Ripple catches lines that only exist in the incoming
+        # change). Every other service stays on "main". trigger_ref/trigger_service
+        # are set by the GitLab webhook; absent for the canned demo payload.
+        trigger_service = payload.get("trigger_service")
+        trigger_ref = payload.get("trigger_ref")
+        if trigger_service and trigger_ref:
+            for svc in services:
+                if svc["name"] == trigger_service:
+                    svc["ref"] = trigger_ref
+
         # Immediately fan out agent_started events so tiles go amber without waiting for Intelligence
         internal_secret = os.environ.get("INTERNAL_SECRET", "")
 

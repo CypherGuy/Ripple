@@ -52,10 +52,10 @@ def _default_gemini(prompt: str) -> list[dict]:
         ex.shutdown(wait=False, cancel_futures=True)
 
 
-def _fetch_service_files(gitlab_namespace: str) -> dict:
+def _fetch_service_files(gitlab_namespace: str, ref: str = "main") -> dict:
     """Read Python source files from a GitLab repository for the scanner agent."""
     token = os.environ.get("GITLAB_TOKEN", "")
-    return read_service_files(gitlab_namespace, token)
+    return read_service_files(gitlab_namespace, token, ref=ref)
 
 
 def call_scanner_adk(service: dict, pattern: str) -> list[dict] | None:
@@ -63,6 +63,15 @@ def call_scanner_adk(service: dict, pattern: str) -> list[dict] | None:
 
     Returns None on timeout/failure so the caller can fall back to direct Gemini.
     """
+    # For a webhook-triggered service the agent must read the MR's branch (so it
+    # catches lines that only exist in the incoming change). The branch is injected
+    # here rather than exposed to the LLM, which only ever supplies the namespace.
+    scan_ref = service.get("ref") or "main"
+
+    def _fetch_files_for_agent(gitlab_namespace: str) -> dict:
+        """Read Python source files from a GitLab repository for the scanner agent."""
+        return _fetch_service_files(gitlab_namespace, scan_ref)
+
     agent = LlmAgent(
         name="ripple_scanner",
         model="gemini-3-flash-preview",
@@ -74,11 +83,13 @@ def call_scanner_adk(service: dict, pattern: str) -> list[dict] | None:
             "For HTTP timeout patterns: flag ANY HTTP call (requests.get, requests.post, requests.put, "
             "requests.delete, httpx.get, httpx.post, httpx.put, urllib.request.urlopen, etc.) "
             "that does NOT pass a timeout argument. Do NOT flag calls that already have timeout=. "
+            "CRITICAL: matching_lines must contain EVERY line in the file that matches the pattern. "
+            "Do not stop at the first match — scan the entire file and include all matching line numbers. "
             "Return a JSON array of hits. Each hit: "
             "file_path (string), matching_lines ([{line_number, content}]), confidence (float 0-1). "
             "Return [] if no hits. Respond with only the JSON array, no markdown."
         ),
-        tools=[FunctionTool(_fetch_service_files)],
+        tools=[FunctionTool(_fetch_files_for_agent)],
     )
 
     session_service = InMemorySessionService()
@@ -182,7 +193,8 @@ def scan_service(
 
         token = os.environ.get("GITLAB_TOKEN", "")
         files = read_service_files(
-            service["gitlab_namespace"], token, _files_override=_files_override)
+            service["gitlab_namespace"], token,
+            _files_override=_files_override, ref=service.get("ref") or "main")
 
         if not files:
             # GitLab API unavailable — use ground truth directly.
@@ -230,6 +242,7 @@ def _regex_scan(files: dict) -> list[dict]:
     http_re = re.compile(r'(requests|httpx)\.\w+\s*\(')
     hits = []
     for file_path, content in files.items():
+        matching_lines = []
         for i, line in enumerate(content.splitlines(), 1):
             stripped = line.strip()
             if stripped.startswith("#"):
@@ -238,12 +251,13 @@ def _regex_scan(files: dict) -> list[dict]:
                 continue
             if "timeout=" in stripped:
                 continue
+            matching_lines.append({"line_number": i, "content": stripped})
+        if matching_lines:
             hits.append({
                 "file_path": file_path,
-                "matching_lines": [{"line_number": i, "content": stripped}],
+                "matching_lines": matching_lines,
                 "confidence": 0.85,
             })
-            break  # one hit per file is enough for fix factory
     return hits
 
 
@@ -268,6 +282,9 @@ Return a JSON array of hits. Each hit must have:
   "file_path": string,
   "matching_lines": [{{"line_number": int, "content": string}}],
   "confidence": float 0-1
+
+CRITICAL: matching_lines must contain EVERY line in the file that matches the pattern.
+Do not stop at the first match — scan the entire file and list all matching line numbers.
 
 Return [] if no hits found. Respond with only the JSON array."""
 

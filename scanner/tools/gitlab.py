@@ -14,6 +14,7 @@ def read_service_files(
     gitlab_namespace: str,
     token: str,
     _files_override: dict | None = None,
+    ref: str = "main",
 ) -> dict[str, str]:
     if _files_override is not None:
         return _files_override
@@ -24,7 +25,7 @@ def read_service_files(
     try:
         tree_r = httpx.get(
             f"{_GITLAB_BASE}/projects/{encoded}/repository/tree",
-            params={"recursive": "true", "per_page": 100},
+            params={"recursive": "true", "per_page": 100, "ref": ref},
             headers=headers,
             timeout=10,
         )
@@ -35,7 +36,7 @@ def read_service_files(
                 path_enc = item["path"].replace("/", "%2F")
                 content_r = httpx.get(
                     f"{_GITLAB_BASE}/projects/{encoded}/repository/files/{path_enc}/raw",
-                    params={"ref": "main"},
+                    params={"ref": ref},
                     headers=headers,
                     timeout=10,
                 )

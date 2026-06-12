@@ -22,6 +22,8 @@ class ServiceEntry(BaseModel):
     name: str
     repo: str | None = None
     gitlab_namespace: str
+    # MR source branch for a webhook-triggered service; None means scan "main".
+    ref: str | None = None
 
 
 class ScanPayload(BaseModel):
@@ -70,7 +72,7 @@ async def scan(payload: ScanPayload):
             )
         except (asyncio.TimeoutError, Exception):
             hits = []
-        tagged = [{**h, "service": svc.name} for h in hits]
+        tagged = [{**h, "service": svc.name, "ref": svc.ref} for h in hits]
 
         if tagged:
             for hit in tagged:
@@ -82,6 +84,7 @@ async def scan(payload: ScanPayload):
                         "file_path": hit.get("file_path"),
                         "matching_lines": hit.get("matching_lines", []),
                         "confidence": hit.get("confidence", 0),
+                        "ref": svc.ref,
                     },
                 })
         else:

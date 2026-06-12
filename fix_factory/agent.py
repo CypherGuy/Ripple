@@ -227,7 +227,19 @@ def run_with_correction(
 
         for i in range(max_iterations):
             try:
-                fix = _fix_fn(hit, traces, precedents)
+                # Generate one fix per matching line so every vulnerable call is patched.
+                # Falls back to a single call on the full hit if matching_lines is empty.
+                matching_lines = hit.get("matching_lines") or []
+                fixes = []
+                for ml in matching_lines:
+                    f = _fix_fn({**hit, "matching_lines": [ml]}, traces, precedents)
+                    if f.get("old_line"):
+                        fixes.append(f)
+                if not fixes:
+                    f = _fix_fn(hit, traces, precedents)
+                    if f.get("old_line"):
+                        fixes = [f]
+                fix = fixes[0] if fixes else {"old_line": "", "new_line": "", "patch": "", "fix_explanation": ""}
                 if extra_context:
                     fix["fix_explanation"] += f" (retry {i+1}: {extra_context})"
 
@@ -239,8 +251,9 @@ def run_with_correction(
                     namespace = hit.get("gitlab_namespace", hit["service"])
                     evaluated_on = evaluation.get(
                         "evaluated_on", "incident_context")
+                    extra_patches = [(f["old_line"], f["new_line"]) for f in fixes[1:]]
                     mr_url = _mr_fn(
-                        namespace, gl_token, hit["file_path"], fix["old_line"], fix["new_line"], hit["incident_context"], evaluated_on)
+                        namespace, gl_token, hit["file_path"], fix["old_line"], fix["new_line"], hit["incident_context"], evaluated_on, extra_patches, hit.get("ref"))
                     outcome = {
                         "service": hit["service"],
                         "file_path": hit["file_path"],

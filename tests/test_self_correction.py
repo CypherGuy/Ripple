@@ -143,6 +143,42 @@ def test_correction_passes_on_first_iteration():
     assert result["failure_reason"] is None
 
 
+def test_correction_passes_mr_branch_as_base_ref():
+    """Shift-left: a webhook-triggered hit carries the MR branch in `ref`, which must
+    reach create_mr as the trailing base_ref arg so the fix MR targets that branch."""
+    from fix_factory.agent import run_with_correction
+    captured = {}
+
+    def _capture_mr(*a, **kw):
+        captured["args"] = a
+        return MOCK_MR_URL
+
+    hit = {**HIT, "ref": "add-new-ssl-expiry"}
+    run_with_correction(
+        hit, [], [],
+        _fix_fn=_fix_fn,
+        _eval_fn=_always_pass_eval,
+        _mr_fn=_capture_mr,
+        _store_fn=lambda d: None,
+    )
+    # create_mr signature: (...evaluated_on, extra_patches, base_ref)
+    assert captured["args"][-1] == "add-new-ssl-expiry"
+
+
+def test_correction_base_ref_is_none_without_trigger():
+    """Codebase-sweep hits have no `ref`; base_ref must be None so create_mr targets main."""
+    from fix_factory.agent import run_with_correction
+    captured = {}
+    run_with_correction(
+        HIT, [], [],
+        _fix_fn=_fix_fn,
+        _eval_fn=_always_pass_eval,
+        _mr_fn=lambda *a, **kw: captured.update(args=a) or MOCK_MR_URL,
+        _store_fn=lambda d: None,
+    )
+    assert captured["args"][-1] is None
+
+
 def test_correction_fails_once_then_passes():
     from fix_factory.agent import run_with_correction
 

@@ -82,6 +82,7 @@ async def internal_scan_event(
                 "matching_lines": hit_data.get("matching_lines", []),
                 "confidence": hit_data.get("confidence", 0),
                 "gitlab_namespace": hit_data.get("gitlab_namespace", service),
+                "ref": hit_data.get("ref"),
             }
             if service and service not in state["hits"]:
                 state["hits"][service] = hit

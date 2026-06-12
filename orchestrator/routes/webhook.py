@@ -101,6 +101,10 @@ async def webhook_gitlab(
         "pr_id": mr_iid,
         "repo": repo,
         "diff": diff or "",
+        # Shift-left: tell the pipeline to scan THIS service on the MR's branch,
+        # so Ripple catches lines that only exist in the incoming change.
+        "trigger_service": repo.split("/")[-1] if repo else None,
+        "trigger_ref": source_branch or None,
         "incident_context": {
             "incident_id": "P-26053",
             "duration_minutes": 47,

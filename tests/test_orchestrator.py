@@ -485,3 +485,26 @@ def test_gitlab_webhook_fires_pipeline_on_mr_open(client):
     call_payload = mock_pipeline.call_args[0][0]
     assert call_payload["pr_id"] == "42"
     assert call_payload["repo"] == "org/ssl-monitor"
+
+
+def test_gitlab_webhook_sets_trigger_service_and_ref(client):
+    """Shift-left: the MR's branch and service must reach the pipeline so the scanner
+    reads the incoming change, not main."""
+    import os
+    from orchestrator.routes import webhook as webhook_mod
+    webhook_mod._last_webhook_time = None  # reset cooldown
+    os.environ.pop("GITLAB_WEBHOOK_SECRET", None)
+    os.environ.pop("GITLAB_TOKEN", None)
+    body = {
+        "object_attributes": {"action": "open", "iid": 99, "source_branch": "add-new-ssl-expiry"},
+        "project": {"id": 123, "path_with_namespace": "cypherguy-group/pulsecheck/ssl-monitor"},
+    }
+    with patch("orchestrator.routes.webhook.run_pipeline", new_callable=AsyncMock) as mock_pipeline:
+        mock_pipeline.return_value = []
+        r = client.post("/webhook/gitlab",
+                        json=body,
+                        headers={"X-Gitlab-Event": "Merge Request Hook"})
+    assert r.status_code == 202
+    call_payload = mock_pipeline.call_args[0][0]
+    assert call_payload["trigger_service"] == "ssl-monitor"
+    assert call_payload["trigger_ref"] == "add-new-ssl-expiry"

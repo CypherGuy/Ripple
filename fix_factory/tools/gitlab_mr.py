@@ -20,6 +20,8 @@ def create_mr(
     new_line: str,
     incident_context: dict,
     evaluated_on: str = "incident_context",
+    extra_patches: list | None = None,
+    base_ref: str | None = None,
 ) -> str | None:
     encoded = gitlab_namespace.replace("/", "%2F")
     headers = {"PRIVATE-TOKEN": token, "Content-Type": "application/json"}
@@ -33,19 +35,26 @@ def create_mr(
         proj.raise_for_status()
         default_branch = proj.json().get("default_branch", "main")
 
+        # Shift-left: when the run was triggered by an MR, branch off and target the
+        # MR's branch (base_ref) so the incoming change is fixed before it merges.
+        # Otherwise fall back to the default branch (codebase-wide sweep behaviour).
+        base = base_ref or default_branch
+
         # Create branch
         httpx.post(f"{_GITLAB_BASE}/projects/{encoded}/repository/branches",
-                   json={"branch": branch, "ref": default_branch},
+                   json={"branch": branch, "ref": base},
                    headers=headers, timeout=30).raise_for_status()
 
         # Get current file content
         path_enc = file_path.replace("/", "%2F")
         file_r = httpx.get(f"{_GITLAB_BASE}/projects/{encoded}/repository/files/{path_enc}",
-                           params={"ref": default_branch}, headers=headers, timeout=30)
+                           params={"ref": base}, headers=headers, timeout=30)
         file_r.raise_for_status()
         current_content = base64.b64decode(file_r.json()["content"]).decode()
 
         new_content = _apply_patch(current_content, old_line, new_line)
+        for xold, xnew in (extra_patches or []):
+            new_content = _apply_patch(new_content, xold, xnew)
 
         # Commit
         httpx.put(f"{_GITLAB_BASE}/projects/{encoded}/repository/files/{path_enc}",
@@ -69,7 +78,7 @@ def create_mr(
         mr_r = httpx.post(f"{_GITLAB_BASE}/projects/{encoded}/merge_requests",
                           json={
                               "source_branch": branch,
-                              "target_branch": default_branch,
+                              "target_branch": base,
                               "title": f"fix: prevent {incident_id} pattern in {file_path}",
                               "description": (
                                   f"**Automated fix by Ripple**\n\n"
@@ -91,17 +100,18 @@ def _apply_patch(content: str, old_line: str, new_line: str) -> str:
     if not old_line:
         return content
 
-    # Exact match first
+    # Exact match: replace all occurrences with identical whitespace.
     if old_line in content:
-        return content.replace(old_line, new_line, 1)
+        content = content.replace(old_line, new_line)
 
-    # Strip-based fallback: handles indentation mismatches between Gemini's
-    # assumed context and the actual file
+    # Strip-based pass: catches any remaining occurrences with different indentation.
+    # Skips lines already patched by the replace above (stripped content would differ).
     lines = content.splitlines(keepends=True)
+    changed = False
     for i, line in enumerate(lines):
-        if line.rstrip("\n").strip() == old_line.strip():
+        stripped = line.rstrip("\n").strip()
+        if stripped == old_line.strip() and stripped != new_line.strip():
             indent = len(line) - len(line.lstrip())
             lines[i] = " " * indent + new_line.strip() + "\n"
-            return "".join(lines)
-
-    return content
+            changed = True
+    return "".join(lines) if changed else content
