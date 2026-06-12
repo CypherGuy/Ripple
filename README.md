@@ -82,12 +82,12 @@ The pipeline overlaps scanning and fixing: the moment a service reports a hit, F
 
 ## Google ADK Integration
 
-All four services use Google ADK `LlmAgent` with `FunctionTool`:
+Intelligence and Scanner use Google ADK `LlmAgent` with `FunctionTool` as their primary execution path:
 
 - **Intelligence** - `LlmAgent` with Dynatrace `FunctionTool`. The agent receives the raw PR diff and decides whether to query Dynatrace for incident history. If the diff looks benign, it skips the call. If it looks dangerous, it fetches real incident traces and grounds its risk score in them.
 - **Scanner** - `LlmAgent` with GitLab `FunctionTool`. The agent decides which files to fetch from each service's repository before searching for the pattern.
-- **Fix Factory (fix agent)** - `LlmAgent` with GitLab history `FunctionTool`. The agent can pull how this team has fixed similar patterns before, generating a contextual patch rather than a generic one.
-- **Fix Factory (eval agent)** - `LlmAgent` with Dynatrace trace `FunctionTool`. The agent validates the proposed fix against the actual incident traces, not just in theory, but against the specific failure that proved the pattern was dangerous.
+
+Fix Factory has ADK agents defined for fix generation (`LlmAgent` with GitLab history `FunctionTool`) and evaluation (`LlmAgent` with Dynatrace trace `FunctionTool`), callable via `call_fix_adk` and `call_evaluator_adk`. The primary execution path uses direct Gemini calls so the self-correction loop stays within the pipeline timeout budget.
 
 ---
 
