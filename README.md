@@ -2,8 +2,8 @@
 
 Ripple shift-lefts your incident history into your PR review: not static analysis, but real Dynatrace traces that tell you whether this pattern has caused an outage before.
 
-**Live dashboard:** https://ripple-dashboard-105645459605.europe-west2.run.app  
-**About & competitor analysis:** https://ripple-dashboard-105645459605.europe-west2.run.app/about
+**Live dashboard:** https://ripple-dashboard-mctjeick3a-nw.a.run.app  
+**About & competitor analysis:** https://ripple-dashboard-mctjeick3a-nw.a.run.app/about
 
 ---
 
@@ -74,7 +74,7 @@ The pipeline overlaps scanning and fixing: the moment a service reports a hit, F
 
 | MCP               | Track     | Role                                                                                                                                                                                                                                                                                                                                                                        |
 | ----------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Dynatrace**     | Primary   | Intelligence queries `query-problems` for incident history matching the PR diff. The ADK agent decides whether the diff warrants a query; it is not called automatically. The evaluator re-fetches real traces via `execute-dql` to validate each fix against the actual failure before opening an MR. Ripple's own Gemini calls are traced in Dynatrace via OpenTelemetry. |
+| **Dynatrace**     | Primary   | Intelligence queries `execute-dql` against the Grail bizevents table for incident history matching the PR diff. The ADK agent decides whether the diff warrants a query; it is not called automatically. The evaluator re-fetches real traces via `execute-dql` to validate each fix against the actual failure before opening an MR. Ripple's own Gemini calls are traced in Dynatrace via OpenTelemetry. |
 | **GitLab**        | Secondary | Scanner fetches source files per service. Fix Factory pulls closed MR history for fix precedents. MRs are opened with incident context embedded in the description.                                                                                                                                                                                                         |
 | **MongoDB Atlas** | Tertiary  | Institutional memory: every merged fix is a Win (confidence +1), every rejected fix is a Scar (risk −2). Subsequent scans query this history. Ripple gets smarter with every developer interaction.                                                                                                                                                                         |
 
@@ -143,7 +143,7 @@ The Pipeline Trace section below the grid shows a live Gantt: Intelligence durat
 
 | Service      | URL                                                        |
 | ------------ | ---------------------------------------------------------- |
-| Dashboard    | https://ripple-dashboard-105645459605.europe-west2.run.app |
+| Dashboard    | https://ripple-dashboard-mctjeick3a-nw.a.run.app           |
 | Orchestrator | https://ripple-orchestrator-mctjeick3a-nw.a.run.app        |
 | Intelligence | https://ripple-intelligence-mctjeick3a-nw.a.run.app        |
 | Scanner      | https://ripple-scanner-mctjeick3a-nw.a.run.app             |
@@ -246,13 +246,13 @@ Builds via Cloud Build, deploys to `europe-west2`. All secrets are pulled from S
 | Agent framework | Google ADK (`LlmAgent`, `FunctionTool`, `Runner`)          |
 | Model           | Gemini 3 Flash (via ADK)                                   |
 | Observability   | OpenTelemetry to Dynatrace (`jfr54188.live.dynatrace.com`) |
-| Primary MCP     | Dynatrace (`query-problems`, `execute-dql`)                |
+| Primary MCP     | Dynatrace (`execute-dql` on Grail bizevents)               |
 | Secondary       | GitLab REST API                                            |
 | Tertiary        | MongoDB Atlas (institutional memory)                       |
 | Backend         | FastAPI · Python 3.13 · asyncio · httpx                    |
 | Frontend        | Next.js 14 · Tailwind CSS · WebSocket                      |
 | Infrastructure  | Google Cloud Run · Cloud Build · Secret Manager            |
-| Tests           | pytest · 164 tests · TDD throughout                        |
+| Tests           | pytest · 176 tests · TDD throughout                        |
 
 ---
 
